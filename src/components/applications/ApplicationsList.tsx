@@ -62,13 +62,24 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ employer = false })
 
       if (employer) {
         // For employers, get applications for their jobs
-        query = query.in(
-          'job_id', 
-          supabase
-            .from('jobs')
-            .select('id')
-            .eq('employer_id', userProfile.id)
-        );
+        // First get the employer's job IDs
+        const { data: jobsData, error: jobsError } = await supabase
+          .from('jobs')
+          .select('id')
+          .eq('employer_id', userProfile.id);
+        
+        if (jobsError) throw jobsError;
+        
+        if (jobsData && jobsData.length > 0) {
+          // Extract job IDs and use them in the query
+          const jobIds = jobsData.map(job => job.id);
+          query = query.in('job_id', jobIds);
+        } else {
+          // If no jobs, return empty array
+          setApplications([]);
+          setLoading(false);
+          return;
+        }
       } else {
         // For employees, get their own applications
         query = query.eq('employee_id', userProfile.id);
