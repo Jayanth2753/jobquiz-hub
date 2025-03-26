@@ -10,6 +10,8 @@ import SkillsManager from "@/components/skills/SkillsManager";
 import ApplicationsList from "@/components/applications/ApplicationsList";
 import QuizList from "@/components/quizzes/QuizList";
 import { Card, CardContent } from "@/components/ui/card";
+import { Link } from "react-router-dom";
+import { PlusCircle } from "lucide-react";
 
 const EmployeeDashboard = () => {
   const { userProfile } = useAuth();
@@ -75,9 +77,17 @@ const EmployeeDashboard = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Employee Dashboard</h1>
-        <p className="text-gray-600">Welcome back, {userProfile?.first_name} {userProfile?.last_name}</p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Employee Dashboard</h1>
+          <p className="text-gray-600">Welcome back, {userProfile?.first_name} {userProfile?.last_name}</p>
+        </div>
+        <Button asChild>
+          <Link to="/manage-skills" className="flex items-center">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Manage Skills
+          </Link>
+        </Button>
       </div>
 
       {tabsError && (
@@ -120,6 +130,11 @@ const EmployeeDashboard = () => {
         
         <TabsContent value="skills">
           <ErrorBoundary fallback={<SkillsLoadError />}>
+            <div className="mb-4">
+              <Button asChild variant="outline">
+                <Link to="/manage-skills">Full Skills Manager</Link>
+              </Button>
+            </div>
             <SkillsManager />
           </ErrorBoundary>
         </TabsContent>

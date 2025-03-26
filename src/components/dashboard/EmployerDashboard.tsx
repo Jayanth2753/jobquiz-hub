@@ -9,6 +9,8 @@ import { toast } from "@/components/ui/use-toast";
 import JobPostForm from "@/components/jobs/JobPostForm";
 import JobsList from "@/components/jobs/JobsList";
 import ApplicationsList from "@/components/applications/ApplicationsList";
+import { Link } from "react-router-dom";
+import { PlusCircle } from "lucide-react";
 
 const EmployerDashboard = () => {
   const { userProfile } = useAuth();
@@ -63,7 +65,12 @@ const EmployerDashboard = () => {
           <p className="text-gray-600">Welcome back, {userProfile?.first_name} {userProfile?.last_name}</p>
         </div>
         {!showJobForm && activeTab === "jobs" && (
-          <Button onClick={() => setShowJobForm(true)}>Post New Job</Button>
+          <Button asChild>
+            <Link to="/post-job" className="flex items-center">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Post New Job
+            </Link>
+          </Button>
         )}
       </div>
 
@@ -85,6 +92,11 @@ const EmployerDashboard = () => {
           </TabsList>
           
           <TabsContent value="jobs">
+            <div className="flex justify-end mb-4">
+              <Button asChild>
+                <Link to="/post-job">Post New Job</Link>
+              </Button>
+            </div>
             <JobsList
               jobs={jobs}
               loading={loading}

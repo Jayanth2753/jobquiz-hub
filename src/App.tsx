@@ -9,6 +9,8 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "@/pages/Index";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
+import ManageSkills from "@/pages/ManageSkills";
+import PostJob from "@/pages/PostJob";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -35,6 +37,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/manage-skills" 
+              element={
+                <ProtectedRoute allowedRoles={["employee"]}>
+                  <ManageSkills />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/post-job" 
+              element={
+                <ProtectedRoute allowedRoles={["employer"]}>
+                  <PostJob />
                 </ProtectedRoute>
               } 
             />
