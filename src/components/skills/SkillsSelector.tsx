@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
 
@@ -54,11 +54,11 @@ const SkillsSelector: React.FC<SkillsSelectorProps> = ({
   };
 
   // Make sure we have a valid array to filter
-  const filteredSkills = allSkills ? allSkills.filter(
+  const filteredSkills = allSkills.filter(
     (skill) =>
       !selectedSkills.some((s) => s.id === skill.id) &&
       skill.name.toLowerCase().includes(searchValue.toLowerCase())
-  ) : [];
+  );
 
   return (
     <div className="space-y-2">
@@ -85,21 +85,23 @@ const SkillsSelector: React.FC<SkillsSelectorProps> = ({
             onValueChange={setSearchValue}
             className="h-9"
           />
-          <CommandEmpty className="py-6 text-center text-sm">
-            {isLoading ? "Loading skills..." : "No skills found."}
-          </CommandEmpty>
-          <CommandGroup className="max-h-52 overflow-y-auto">
-            {filteredSkills.map((skill) => (
-              <CommandItem
-                key={skill.id}
-                value={skill.name}
-                onSelect={() => handleSelectSkill(skill)}
-                className="cursor-pointer"
-              >
-                {skill.name}
-              </CommandItem>
-            ))}
-          </CommandGroup>
+          <CommandList>
+            <CommandEmpty className="py-6 text-center text-sm">
+              {isLoading ? "Loading skills..." : "No skills found."}
+            </CommandEmpty>
+            <CommandGroup className="max-h-52 overflow-y-auto">
+              {filteredSkills.map((skill) => (
+                <CommandItem
+                  key={skill.id}
+                  value={skill.name}
+                  onSelect={() => handleSelectSkill(skill)}
+                  className="cursor-pointer"
+                >
+                  {skill.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
         </Command>
       </div>
     </div>
