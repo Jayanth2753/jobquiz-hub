@@ -2,13 +2,10 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/components/ui/use-toast";
-import SkillsSelector from "@/components/skills/SkillsSelector";
+import JobDetailsSection from "./JobDetailsSection";
+import JobSkillsSection from "./JobSkillsSection";
+import JobFormActions from "./JobFormActions";
 
 interface JobPostFormProps {
   jobData?: any;
@@ -70,6 +67,27 @@ const JobPostForm: React.FC<JobPostFormProps> = ({
         variant: "destructive",
       });
     }
+  };
+
+  const handleSkillSelected = (skills: any[]) => {
+    setSelectedSkills(skills);
+    
+    // Initialize importance for new skills
+    const newImportance = { ...skillImportance };
+    skills.forEach((skill) => {
+      if (!newImportance[skill.id]) {
+        newImportance[skill.id] = 3; // Default to medium importance
+      }
+    });
+    
+    setSkillImportance(newImportance);
+  };
+
+  const handleImportanceChange = (skillId: string, importance: number) => {
+    setSkillImportance({
+      ...skillImportance,
+      [skillId]: importance
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -163,128 +181,31 @@ const JobPostForm: React.FC<JobPostFormProps> = ({
     }
   };
 
-  const handleSkillSelected = (skills: any[]) => {
-    setSelectedSkills(skills);
-    
-    // Initialize importance for new skills
-    const newImportance = { ...skillImportance };
-    skills.forEach((skill) => {
-      if (!newImportance[skill.id]) {
-        newImportance[skill.id] = 3; // Default to medium importance
-      }
-    });
-    
-    setSkillImportance(newImportance);
-  };
-
-  const handleImportanceChange = (skillId: string, importance: number) => {
-    setSkillImportance({
-      ...skillImportance,
-      [skillId]: importance
-    });
-  };
-
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="title">Job Title *</Label>
-        <Input
-          id="title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="e.g. Frontend Developer"
-          required
-        />
-      </div>
+      <JobDetailsSection
+        title={title}
+        setTitle={setTitle}
+        description={description}
+        setDescription={setDescription}
+        location={location}
+        setLocation={setLocation}
+        isRemote={isRemote}
+        setIsRemote={setIsRemote}
+      />
       
-      <div className="space-y-2">
-        <Label htmlFor="description">Job Description *</Label>
-        <Textarea
-          id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Describe the job responsibilities, qualifications, and any other relevant information..."
-          className="min-h-[150px]"
-          required
-        />
-      </div>
+      <JobSkillsSection
+        selectedSkills={selectedSkills}
+        skillImportance={skillImportance}
+        onSkillsChange={handleSkillSelected}
+        onImportanceChange={handleImportanceChange}
+      />
       
-      <div className="space-y-2">
-        <Label htmlFor="location">Location</Label>
-        <Input
-          id="location"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder="e.g. New York, NY"
-        />
-      </div>
-      
-      <div className="flex items-center space-x-2">
-        <Checkbox
-          id="isRemote"
-          checked={isRemote}
-          onCheckedChange={(checked) => setIsRemote(checked as boolean)}
-        />
-        <Label htmlFor="isRemote" className="cursor-pointer">This is a remote position</Label>
-      </div>
-      
-      <div className="space-y-3">
-        <Label>Required Skills *</Label>
-        <SkillsSelector
-          selectedSkills={selectedSkills}
-          onSkillsChange={handleSkillSelected}
-        />
-        
-        {selectedSkills.length > 0 && (
-          <div className="mt-4">
-            <Label>Skill Importance</Label>
-            <div className="space-y-3 mt-2">
-              {selectedSkills.map((skill) => (
-                <div key={skill.id} className="flex items-center justify-between">
-                  <span>{skill.name}</span>
-                  <div className="flex items-center space-x-1">
-                    {[1, 2, 3, 4, 5].map((level) => (
-                      <button
-                        key={level}
-                        type="button"
-                        className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                          skillImportance[skill.id] >= level
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-gray-200 text-gray-500"
-                        }`}
-                        onClick={() => handleImportanceChange(skill.id, level)}
-                      >
-                        {level}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-      
-      <div className="flex justify-end space-x-3">
-        <Button 
-          type="button" 
-          variant="outline" 
-          onClick={onCancel}
-          disabled={loading}
-        >
-          Cancel
-        </Button>
-        <Button type="submit" disabled={loading}>
-          {loading ? (
-            <span className="flex items-center">
-              <span className="animate-spin mr-2 h-4 w-4 border-t-2 border-b-2 border-white rounded-full"></span>
-              {isEditing ? "Updating..." : "Posting..."}
-            </span>
-          ) : (
-            isEditing ? "Update Job" : "Post Job"
-          )}
-        </Button>
-      </div>
+      <JobFormActions
+        loading={loading}
+        isEditing={isEditing}
+        onCancel={onCancel}
+      />
     </form>
   );
 };
