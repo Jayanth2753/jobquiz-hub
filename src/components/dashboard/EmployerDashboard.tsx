@@ -10,7 +10,7 @@ import JobPostForm from "@/components/jobs/JobPostForm";
 import JobsList from "@/components/jobs/JobsList";
 import ApplicationsList from "@/components/applications/ApplicationsList";
 import { Link } from "react-router-dom";
-import { LogOut, PlusCircle } from "lucide-react";
+import { LogOut, PlusCircle, Database } from "lucide-react";
 
 const EmployerDashboard = () => {
   const { userProfile, signOut } = useAuth();
@@ -73,6 +73,12 @@ const EmployerDashboard = () => {
               </Link>
             </Button>
           )}
+          <Button asChild variant="outline">
+            <Link to="/manage-skills" className="flex items-center">
+              <Database className="mr-2 h-4 w-4" />
+              Manage Skills
+            </Link>
+          </Button>
           <Button variant="outline" onClick={signOut} className="flex items-center gap-2">
             <LogOut className="h-4 w-4" />
             Sign Out

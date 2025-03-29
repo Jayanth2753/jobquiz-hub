@@ -24,10 +24,6 @@ const ManageSkills = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  if (userRole !== "employee") {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
@@ -37,15 +33,21 @@ const ManageSkills = () => {
             Back to Dashboard
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold">Manage Your Skills</h1>
+        <h1 className="text-3xl font-bold">
+          {userRole === "employer" ? "Manage Required Skills" : "Manage Your Skills"}
+        </h1>
         <p className="text-gray-600 mt-2">
-          Add and manage your professional skills to improve job matching.
+          {userRole === "employer" 
+            ? "Add and manage skills required for your job postings."
+            : "Add and manage your professional skills to improve job matching."}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>My Skills Profile</CardTitle>
+          <CardTitle>
+            {userRole === "employer" ? "Skills Database" : "My Skills Profile"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <SkillsManager />
