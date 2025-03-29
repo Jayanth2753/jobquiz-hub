@@ -1,188 +1,137 @@
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "@/components/ui/use-toast";
+import { Link } from "react-router-dom";
+import { ArrowRight, Briefcase, Check, Sparkles } from "lucide-react";
 import JobsList from "@/components/jobs/JobsList";
-import SkillsManager from "@/components/skills/SkillsManager";
 import ApplicationsList from "@/components/applications/ApplicationsList";
 import QuizList from "@/components/quizzes/QuizList";
-import { Card, CardContent } from "@/components/ui/card";
-import { Link } from "react-router-dom";
-import { LogOut, PlusCircle } from "lucide-react";
 
-const EmployeeDashboard = () => {
-  const { userProfile, signOut } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState("jobs");
-  const [tabsError, setTabsError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (userProfile) {
-      fetchAvailableJobs();
-    }
-  }, [userProfile]);
-
-  const fetchAvailableJobs = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("jobs")
-        .select("*")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        throw error;
-      }
-
-      setJobs(data || []);
-    } catch (error: any) {
-      console.error("Error fetching jobs:", error);
-      toast({
-        title: "Error fetching jobs",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTabChange = (value: string) => {
-    try {
-      setTabsError(null);
-      setActiveTab(value);
-    } catch (error: any) {
-      console.error("Error changing tab:", error);
-      setTabsError("There was an error loading this section. Please try again.");
-    }
-  };
-
-  if (!userProfile) {
-    return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <Card>
-          <CardContent className="py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-            <p>Loading profile information...</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+const EmployeeDashboard: React.FC = () => {
+  const { userProfile } = useAuth();
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Employee Dashboard</h1>
-          <p className="text-gray-600">Welcome back, {userProfile?.first_name} {userProfile?.last_name}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button asChild>
-            <Link to="/manage-skills" className="flex items-center">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Manage Skills
-            </Link>
-          </Button>
-          <Button variant="outline" onClick={signOut} className="flex items-center gap-2">
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </Button>
-        </div>
+    <div className="flex flex-col space-y-6">
+      <div className="flex flex-col space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">Welcome, {userProfile?.first_name}!</h1>
+        <p className="text-muted-foreground">
+          Manage your job applications and skill assessments all in one place.
+        </p>
       </div>
 
-      {tabsError && (
-        <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-md">
-          {tabsError}
-          <Button 
-            variant="outline" 
-            className="ml-4"
-            onClick={() => window.location.reload()}
-          >
-            Refresh Page
-          </Button>
-        </div>
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center">
+              <Briefcase className="mr-2 h-5 w-5" />
+              Browse Jobs
+            </CardTitle>
+            <CardDescription>Find your next opportunity</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">
+              Explore job postings that match your skills and experience.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild variant="secondary" className="w-full justify-between">
+              <Link to="/dashboard">
+                Browse Jobs <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
 
-      <Tabs defaultValue={activeTab} onValueChange={handleTabChange} className="mb-8">
-        <TabsList className="grid w-full max-w-md grid-cols-4">
-          <TabsTrigger value="jobs">Available Jobs</TabsTrigger>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center">
+              <Check className="mr-2 h-5 w-5" />
+              Manage Skills
+            </CardTitle>
+            <CardDescription>Update your skill profile</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">
+              Add and update your professional skills to improve job matching.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild variant="secondary" className="w-full justify-between">
+              <Link to="/manage-skills">
+                Manage Skills <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center">
+              <Sparkles className="mr-2 h-5 w-5" />
+              Generate Quiz
+            </CardTitle>
+            <CardDescription>Test your skills</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">
+              Create a personalized quiz based on your skills and proficiency levels.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild variant="secondary" className="w-full justify-between">
+              <Link to="/generate-quiz">
+                Generate Quiz <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="applications" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="applications">My Applications</TabsTrigger>
-          <TabsTrigger value="quizzes">My Quizzes</TabsTrigger>
-          <TabsTrigger value="skills">My Skills</TabsTrigger>
+          <TabsTrigger value="jobs">Available Jobs</TabsTrigger>
+          <TabsTrigger value="quizzes">Skill Assessments</TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="jobs">
-          <JobsList
-            jobs={jobs}
-            loading={loading}
-            isEmployee={true}
-            emptyMessage="There are no active job listings at the moment."
-          />
-        </TabsContent>
-        
         <TabsContent value="applications">
-          <ApplicationsList />
+          <Card>
+            <CardHeader>
+              <CardTitle>Applications</CardTitle>
+              <CardDescription>Track all your job applications</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ApplicationsList />
+            </CardContent>
+          </Card>
         </TabsContent>
-        
+        <TabsContent value="jobs">
+          <Card>
+            <CardHeader>
+              <CardTitle>Available Jobs</CardTitle>
+              <CardDescription>Browse and apply for jobs</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <JobsList />
+            </CardContent>
+          </Card>
+        </TabsContent>
         <TabsContent value="quizzes">
-          <QuizList />
-        </TabsContent>
-        
-        <TabsContent value="skills">
-          <ErrorBoundary fallback={<SkillsLoadError />}>
-            <div className="mb-4">
-              <Button asChild variant="outline">
-                <Link to="/manage-skills">Full Skills Manager</Link>
-              </Button>
-            </div>
-            <SkillsManager />
-          </ErrorBoundary>
+          <Card>
+            <CardHeader>
+              <CardTitle>Skill Assessments</CardTitle>
+              <CardDescription>View and complete your skill assessments</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <QuizList />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
   );
 };
-
-// Simple error boundary component for handling potential errors in tab content
-class ErrorBoundary extends React.Component<{
-  children: React.ReactNode;
-  fallback: React.ReactNode;
-}> {
-  state = { hasError: false };
-  
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  
-  componentDidCatch(error: any, info: any) {
-    console.error("Component error:", error, info);
-  }
-  
-  render() {
-    if (this.state.hasError) {
-      return this.props.fallback;
-    }
-    return this.props.children;
-  }
-}
-
-// Fallback component for skills tab errors
-const SkillsLoadError = () => (
-  <Card>
-    <CardContent className="py-8 text-center">
-      <h3 className="text-lg font-medium mb-2">Unable to load skills</h3>
-      <p className="mb-4">There was a problem loading your skills information.</p>
-      <Button onClick={() => window.location.reload()}>
-        Reload Page
-      </Button>
-    </CardContent>
-  </Card>
-);
 
 export default EmployeeDashboard;
