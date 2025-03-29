@@ -53,11 +53,12 @@ const SkillsSelector: React.FC<SkillsSelectorProps> = ({
     onSkillsChange(selectedSkills.filter((s) => s.id !== skillId));
   };
 
-  const filteredSkills = allSkills.filter(
+  // Make sure we have a valid array to filter
+  const filteredSkills = allSkills ? allSkills.filter(
     (skill) =>
       !selectedSkills.some((s) => s.id === skill.id) &&
       skill.name.toLowerCase().includes(searchValue.toLowerCase())
-  );
+  ) : [];
 
   return (
     <div className="space-y-2">
