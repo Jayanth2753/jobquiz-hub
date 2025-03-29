@@ -16,7 +16,6 @@ const SkillsSelector: React.FC<SkillsSelectorProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [allSkills, setAllSkills] = useState<any[]>([]);
-  const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
 
   useEffect(() => {
@@ -77,29 +76,31 @@ const SkillsSelector: React.FC<SkillsSelectorProps> = ({
         ))}
       </div>
       
-      <Command className="border rounded-md">
-        <CommandInput
-          placeholder="Search skills..."
-          value={searchValue}
-          onValueChange={setSearchValue}
-          className="h-9"
-        />
-        <CommandEmpty>
-          {isLoading ? "Loading skills..." : "No skills found."}
-        </CommandEmpty>
-        <CommandGroup className="max-h-52 overflow-y-auto">
-          {filteredSkills.map((skill) => (
-            <CommandItem
-              key={skill.id}
-              value={skill.name}
-              onSelect={() => handleSelectSkill(skill)}
-              className="cursor-pointer"
-            >
-              {skill.name}
-            </CommandItem>
-          ))}
-        </CommandGroup>
-      </Command>
+      <div className="relative">
+        <Command className="border rounded-md bg-white">
+          <CommandInput
+            placeholder="Search skills..."
+            value={searchValue}
+            onValueChange={setSearchValue}
+            className="h-9"
+          />
+          <CommandEmpty className="py-6 text-center text-sm">
+            {isLoading ? "Loading skills..." : "No skills found."}
+          </CommandEmpty>
+          <CommandGroup className="max-h-52 overflow-y-auto">
+            {filteredSkills.map((skill) => (
+              <CommandItem
+                key={skill.id}
+                value={skill.name}
+                onSelect={() => handleSelectSkill(skill)}
+                className="cursor-pointer"
+              >
+                {skill.name}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </Command>
+      </div>
     </div>
   );
 };
