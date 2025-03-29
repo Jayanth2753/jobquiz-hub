@@ -10,10 +10,10 @@ import JobPostForm from "@/components/jobs/JobPostForm";
 import JobsList from "@/components/jobs/JobsList";
 import ApplicationsList from "@/components/applications/ApplicationsList";
 import { Link } from "react-router-dom";
-import { PlusCircle } from "lucide-react";
+import { LogOut, PlusCircle } from "lucide-react";
 
 const EmployerDashboard = () => {
-  const { userProfile } = useAuth();
+  const { userProfile, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
   const [showJobForm, setShowJobForm] = useState(false);
   const [jobs, setJobs] = useState<any[]>([]);
@@ -64,14 +64,20 @@ const EmployerDashboard = () => {
           <h1 className="text-3xl font-bold">Employer Dashboard</h1>
           <p className="text-gray-600">Welcome back, {userProfile?.first_name} {userProfile?.last_name}</p>
         </div>
-        {!showJobForm && activeTab === "jobs" && (
-          <Button asChild>
-            <Link to="/post-job" className="flex items-center">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Post New Job
-            </Link>
+        <div className="flex gap-2">
+          {!showJobForm && activeTab === "jobs" && (
+            <Button asChild>
+              <Link to="/post-job" className="flex items-center">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Post New Job
+              </Link>
+            </Button>
+          )}
+          <Button variant="outline" onClick={signOut} className="flex items-center gap-2">
+            <LogOut className="h-4 w-4" />
+            Sign Out
           </Button>
-        )}
+        </div>
       </div>
 
       {showJobForm ? (

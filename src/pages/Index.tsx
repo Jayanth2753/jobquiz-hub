@@ -2,16 +2,36 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { LogOut } from "lucide-react";
 
 const Index = () => {
+  const { user, signOut } = useAuth();
+  
   return (
     <div className="min-h-screen flex flex-col">
       <header className="w-full py-6 px-8 flex items-center justify-between glass-effect fixed top-0">
         <h1 className="text-2xl font-semibold">TalentBridge</h1>
-        <nav>
-          <Link to="/auth">
-            <Button variant="ghost">Sign In</Button>
-          </Link>
+        <nav className="flex items-center gap-4">
+          {user ? (
+            <>
+              <Link to="/dashboard">
+                <Button variant="ghost">Dashboard</Button>
+              </Link>
+              <Button 
+                variant="outline" 
+                onClick={signOut} 
+                className="flex items-center gap-2"
+              >
+                <LogOut size={16} />
+                Sign Out
+              </Button>
+            </>
+          ) : (
+            <Link to="/auth">
+              <Button variant="ghost">Sign In</Button>
+            </Link>
+          )}
         </nav>
       </header>
 
@@ -24,16 +44,18 @@ const Index = () => {
             <p className="text-xl text-muted-foreground">
               A modern recruitment platform that matches skills with opportunities.
             </p>
-            <div className="flex gap-4 justify-center pt-4">
-              <Link to="/auth?type=employee">
-                <Button size="lg">Find Jobs</Button>
-              </Link>
-              <Link to="/auth?type=employer">
-                <Button size="lg" variant="outline">
-                  Post Jobs
-                </Button>
-              </Link>
-            </div>
+            {!user && (
+              <div className="flex gap-4 justify-center pt-4">
+                <Link to="/auth?type=employee">
+                  <Button size="lg">Find Jobs</Button>
+                </Link>
+                <Link to="/auth?type=employer">
+                  <Button size="lg" variant="outline">
+                    Post Jobs
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
         </section>
 

@@ -11,10 +11,10 @@ import ApplicationsList from "@/components/applications/ApplicationsList";
 import QuizList from "@/components/quizzes/QuizList";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { PlusCircle } from "lucide-react";
+import { LogOut, PlusCircle } from "lucide-react";
 
 const EmployeeDashboard = () => {
-  const { userProfile } = useAuth();
+  const { userProfile, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("jobs");
@@ -82,12 +82,18 @@ const EmployeeDashboard = () => {
           <h1 className="text-3xl font-bold">Employee Dashboard</h1>
           <p className="text-gray-600">Welcome back, {userProfile?.first_name} {userProfile?.last_name}</p>
         </div>
-        <Button asChild>
-          <Link to="/manage-skills" className="flex items-center">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Manage Skills
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild>
+            <Link to="/manage-skills" className="flex items-center">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Manage Skills
+            </Link>
+          </Button>
+          <Button variant="outline" onClick={signOut} className="flex items-center gap-2">
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </Button>
+        </div>
       </div>
 
       {tabsError && (
