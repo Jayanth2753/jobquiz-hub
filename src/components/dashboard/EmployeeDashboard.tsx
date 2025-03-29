@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +9,37 @@ import { ArrowRight, Briefcase, Check, Sparkles } from "lucide-react";
 import JobsList from "@/components/jobs/JobsList";
 import ApplicationsList from "@/components/applications/ApplicationsList";
 import QuizList from "@/components/quizzes/QuizList";
+import { supabase } from "@/integrations/supabase/client";
 
 const EmployeeDashboard: React.FC = () => {
   const { userProfile } = useAuth();
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchJobs();
+  }, []);
+
+  const fetchJobs = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      setJobs(data || []);
+    } catch (error) {
+      console.error("Error fetching jobs:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col space-y-6">
@@ -114,7 +142,12 @@ const EmployeeDashboard: React.FC = () => {
               <CardDescription>Browse and apply for jobs</CardDescription>
             </CardHeader>
             <CardContent>
-              <JobsList />
+              <JobsList 
+                jobs={jobs} 
+                loading={loading} 
+                isEmployee={true} 
+                emptyMessage="No jobs available at the moment." 
+              />
             </CardContent>
           </Card>
         </TabsContent>
