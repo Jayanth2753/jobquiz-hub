@@ -3,39 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { LogOut } from "lucide-react";
 
 const Index = () => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="w-full py-6 px-8 flex items-center justify-between glass-effect fixed top-0">
-        <h1 className="text-2xl font-semibold">TalentBridge</h1>
-        <nav className="flex items-center gap-4">
-          {user ? (
-            <>
-              <Link to="/dashboard">
-                <Button variant="ghost">Dashboard</Button>
-              </Link>
-              <Button 
-                variant="outline" 
-                onClick={signOut} 
-                className="flex items-center gap-2"
-              >
-                <LogOut size={16} />
-                Sign Out
-              </Button>
-            </>
-          ) : (
-            <Link to="/auth">
-              <Button variant="ghost">Sign In</Button>
-            </Link>
-          )}
-        </nav>
-      </header>
-
-      <main className="flex-1 pt-24">
+    <div className="min-h-screen">
+      <main className="flex-1">
         <section className="container mx-auto px-4 py-16">
           <div className="text-center max-w-3xl mx-auto space-y-6 animate-fade-in">
             <h2 className="text-4xl sm:text-5xl font-bold tracking-tight">
@@ -82,12 +56,6 @@ const Index = () => {
           </div>
         </section>
       </main>
-
-      <footer className="w-full py-6 px-8 border-t">
-        <div className="container mx-auto text-center text-sm text-muted-foreground">
-          © 2024 TalentBridge. All rights reserved.
-        </div>
-      </footer>
     </div>
   );
 };

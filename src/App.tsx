@@ -13,6 +13,7 @@ import ManageSkills from "@/pages/ManageSkills";
 import PostJob from "@/pages/PostJob";
 import NotFound from "@/pages/NotFound";
 import GenerateQuiz from "@/pages/GenerateQuiz";
+import MainLayout from "@/components/layout/MainLayout";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,13 +32,15 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/" element={<MainLayout><Index /></MainLayout>} />
             <Route 
               path="/dashboard" 
               element={
                 <ProtectedRoute>
-                  <Dashboard />
+                  <MainLayout>
+                    <Dashboard />
+                  </MainLayout>
                 </ProtectedRoute>
               } 
             />
@@ -45,7 +48,9 @@ const App = () => (
               path="/manage-skills" 
               element={
                 <ProtectedRoute>
-                  <ManageSkills />
+                  <MainLayout>
+                    <ManageSkills />
+                  </MainLayout>
                 </ProtectedRoute>
               } 
             />
@@ -53,7 +58,9 @@ const App = () => (
               path="/post-job" 
               element={
                 <ProtectedRoute allowedRoles={["employer"]}>
-                  <PostJob />
+                  <MainLayout>
+                    <PostJob />
+                  </MainLayout>
                 </ProtectedRoute>
               } 
             />
@@ -61,11 +68,13 @@ const App = () => (
               path="/generate-quiz" 
               element={
                 <ProtectedRoute>
-                  <GenerateQuiz />
+                  <MainLayout>
+                    <GenerateQuiz />
+                  </MainLayout>
                 </ProtectedRoute>
               } 
             />
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={<MainLayout><NotFound /></MainLayout>} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
