@@ -57,7 +57,7 @@ serve(async (req) => {
 
     // Parse request body
     const requestData: RequestData = await req.json();
-    const { skills, questionsPerSkill = 10 } = requestData;
+    const { skills, questionsPerSkill = 5 } = requestData;
 
     if (!skills || !Array.isArray(skills) || skills.length === 0) {
       return new Response(
@@ -119,7 +119,6 @@ async function generateQuestionsForSkill(
   correct_answer?: string;
   explanation?: string;
 }>> {
-  // For production, use the OpenAI API to generate relevant questions
   try {
     const prompt = `
 Generate ${questionsCount} multiple-choice questions about ${skill.name} at proficiency level ${skill.proficiency} (1=beginner, 5=expert).
@@ -139,11 +138,8 @@ Make sure the difficulty matches the proficiency level:
 - Level 5: Expert-level understanding and deep technical knowledge
 `;
 
-    // For now, return mock data based on the proficiency level
-    // In a real implementation, uncomment the OpenAI API call below:
-    /*
     const response = await openAIClient.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: "You are a specialized education AI that creates relevant assessment questions." },
         { role: "user", content: prompt }
@@ -159,32 +155,45 @@ Make sure the difficulty matches the proficiency level:
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
       }
-      return [{ question: "Error parsing AI response", options: [], correct_answer: "", explanation: "" }];
+      
+      // Fallback to mock data if parsing fails
+      console.error("Error parsing OpenAI response, using fallback mock data");
+      return generateMockQuestions(skill, questionsCount);
     } catch (parseError) {
       console.error("Error parsing OpenAI response:", parseError);
-      return [{ question: "Error generating questions", options: [], correct_answer: "", explanation: "" }];
+      return generateMockQuestions(skill, questionsCount);
     }
-    */
-
-    // Mock data for development - return different questions based on proficiency
-    return Array.from({ length: questionsCount }, (_, i) => {
-      const difficultyPrefix = proficiencyToPrefix(skill.proficiency);
-      return {
-        question: `${difficultyPrefix} ${skill.name} Question ${i + 1}: What is the best practice for ${skill.name}?`,
-        options: [
-          `Option A for ${skill.name}`,
-          `Option B for ${skill.name}`,
-          `Option C for ${skill.name}`,
-          `Option D for ${skill.name}`
-        ],
-        correct_answer: `Option C for ${skill.name}`,
-        explanation: `Explanation for question ${i + 1} about ${skill.name}`
-      };
-    });
   } catch (error) {
     console.error("Error calling OpenAI API:", error);
-    throw new Error(`Failed to generate questions: ${error.message}`);
+    // Fallback to mock data if the API call fails
+    return generateMockQuestions(skill, questionsCount);
   }
+}
+
+function generateMockQuestions(
+  skill: { id: string; name: string; proficiency: number },
+  questionsCount: number
+): Array<{
+  question: string;
+  options: string[];
+  correct_answer: string;
+  explanation: string;
+}> {
+  const difficultyPrefix = proficiencyToPrefix(skill.proficiency);
+  
+  return Array.from({ length: questionsCount }, (_, i) => {
+    return {
+      question: `${difficultyPrefix} ${skill.name} Question ${i + 1}: What is the best practice for ${skill.name}?`,
+      options: [
+        `Option A for ${skill.name}`,
+        `Option B for ${skill.name}`,
+        `Option C for ${skill.name}`,
+        `Option D for ${skill.name}`
+      ],
+      correct_answer: `Option C for ${skill.name}`,
+      explanation: `Explanation for question ${i + 1} about ${skill.name}`
+    };
+  });
 }
 
 function proficiencyToPrefix(proficiency: number): string {

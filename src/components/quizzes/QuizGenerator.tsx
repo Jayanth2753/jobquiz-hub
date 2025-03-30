@@ -8,6 +8,7 @@ import { toast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
 import SkillsSelector from "@/components/skills/SkillsSelector";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useNavigate } from "react-router-dom";
 
 interface QuizGeneratorProps {
   onQuizGenerated?: (quizId: string) => void;
@@ -15,11 +16,12 @@ interface QuizGeneratorProps {
 
 const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
   const { userProfile } = useAuth();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [selectedSkills, setSelectedSkills] = useState<any[]>([]);
   const [proficiencyMap, setProficiencyMap] = useState<Record<string, number>>({});
   const [saveToDatabase, setSaveToDatabase] = useState(true);
-  const [generatedQuiz, setGeneratedQuiz] = useState<any>(null);
+  const [questionsPerSkill, setQuestionsPerSkill] = useState(5);
 
   const handleSkillsChange = (skills: any[]) => {
     setSelectedSkills(skills);
@@ -64,24 +66,40 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
 
       // Call the edge function to generate questions
       const { data, error } = await supabase.functions.invoke("generate-quiz-questions", {
-        body: { skills: skillsData }
+        body: { 
+          skills: skillsData,
+          questionsPerSkill
+        }
       });
 
       if (error) throw error;
 
-      // Save to database if requested
-      if (saveToDatabase && userProfile) {
-        const quiz = await saveQuizToDatabase(data.questions);
-        setGeneratedQuiz(quiz);
-        if (onQuizGenerated) onQuizGenerated(quiz.id);
-      } else {
-        setGeneratedQuiz({ questions: data.questions });
+      if (!data) {
+        throw new Error("No data returned from quiz generation");
       }
 
-      toast({
-        title: "Quiz Generated",
-        description: `Successfully generated ${data.questions.length} questions based on your skills.`,
-      });
+      let quizId = "";
+
+      // Save to database if requested
+      if (saveToDatabase && userProfile) {
+        const quiz = await saveQuizToDatabase(data.data);
+        quizId = quiz.id;
+        if (onQuizGenerated) onQuizGenerated(quiz.id);
+        
+        toast({
+          title: "Quiz Generated and Saved",
+          description: `Successfully generated a quiz with ${data.data.length} skills. You can find it in your assessments.`,
+        });
+        
+        // Navigate to dashboard to view the saved quiz
+        navigate("/dashboard");
+      } else {
+        toast({
+          title: "Quiz Generated",
+          description: `Successfully generated ${data.data.length} skills with customized questions.`,
+        });
+      }
+
     } catch (error: any) {
       console.error("Error generating quiz:", error);
       toast({
@@ -94,7 +112,7 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
     }
   };
 
-  const saveQuizToDatabase = async (questions: any[]) => {
+  const saveQuizToDatabase = async (quizData: any[]) => {
     // Create a new quiz
     const { data: quizData, error: quizError } = await supabase
       .from("quizzes")
@@ -108,22 +126,35 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
 
     if (quizError) throw quizError;
 
+    const quizId = quizData.id;
+
     // Add questions to the quiz
-    const questionsToInsert = questions.map(q => ({
-      quiz_id: quizData.id,
-      skill_id: q.skill_id,
-      question: q.question,
-      options: JSON.stringify(q.options),
-      correct_answer: q.correct_answer
-    }));
+    const questionsToInsert = [];
 
-    const { error: questionsError } = await supabase
-      .from("quiz_questions")
-      .insert(questionsToInsert);
+    // Process each skill's questions
+    for (const skillData of quizData) {
+      if (skillData.questions && Array.isArray(skillData.questions)) {
+        for (const question of skillData.questions) {
+          questionsToInsert.push({
+            quiz_id: quizId,
+            skill_id: skillData.skill_id,
+            question: question.question,
+            options: JSON.stringify(question.options),
+            correct_answer: question.correct_answer
+          });
+        }
+      }
+    }
 
-    if (questionsError) throw questionsError;
+    if (questionsToInsert.length > 0) {
+      const { error: questionsError } = await supabase
+        .from("quiz_questions")
+        .insert(questionsToInsert);
 
-    return { ...quizData, questions };
+      if (questionsError) throw questionsError;
+    }
+
+    return { id: quizId, questions: questionsToInsert.length };
   };
 
   return (
@@ -179,15 +210,30 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
             </div>
           )}
 
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="saveToDatabase" 
-              checked={saveToDatabase} 
-              onCheckedChange={(checked) => setSaveToDatabase(checked as boolean)}
-            />
-            <label htmlFor="saveToDatabase" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-              Save quiz to database
-            </label>
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-medium mb-2">Questions per skill</h3>
+              <select 
+                className="border border-gray-300 rounded px-3 py-2 w-full"
+                value={questionsPerSkill}
+                onChange={(e) => setQuestionsPerSkill(Number(e.target.value))}
+              >
+                <option value="3">3 questions</option>
+                <option value="5">5 questions</option>
+                <option value="10">10 questions</option>
+              </select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="saveToDatabase" 
+                checked={saveToDatabase} 
+                onCheckedChange={(checked) => setSaveToDatabase(checked as boolean)}
+              />
+              <label htmlFor="saveToDatabase" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Save quiz to database
+              </label>
+            </div>
           </div>
 
           <Button 
