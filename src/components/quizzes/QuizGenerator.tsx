@@ -20,16 +20,15 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
   const [selectedSkills, setSelectedSkills] = useState<any[]>([]);
   const [proficiencyMap, setProficiencyMap] = useState<Record<string, number>>({});
   const [saveToDatabase, setSaveToDatabase] = useState(true);
-  const [questionsPerSkill, setQuestionsPerSkill] = useState(5);
+  const [questionsPerSkill, setQuestionsPerSkill] = useState(10);
 
   const handleSkillsChange = (skills: any[]) => {
     setSelectedSkills(skills);
     
-    // Initialize proficiency for new skills
     const newProficiency = { ...proficiencyMap };
     skills.forEach((skill) => {
       if (!newProficiency[skill.id]) {
-        newProficiency[skill.id] = 3; // Default to medium proficiency
+        newProficiency[skill.id] = 3;
       }
     });
     
@@ -56,14 +55,12 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
     try {
       setIsLoading(true);
 
-      // Prepare skills data with proficiency levels
       const skillsData = selectedSkills.map(skill => ({
         id: skill.id,
         name: skill.name,
         proficiency: proficiencyMap[skill.id] || 3
       }));
 
-      // Call the edge function to generate questions
       const { data, error } = await supabase.functions.invoke("generate-quiz-questions", {
         body: { 
           skills: skillsData,
@@ -79,7 +76,6 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
 
       let quizId = "";
 
-      // Save to database if requested
       if (saveToDatabase && userProfile) {
         const quiz = await saveQuizToDatabase(data.data);
         quizId = quiz.id;
@@ -90,7 +86,6 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
           description: `Successfully generated a quiz with ${data.data.length} skills. You can find it in your assessments.`,
         });
         
-        // Navigate to dashboard to view the saved quiz
         navigate("/dashboard");
       } else {
         toast({
@@ -112,11 +107,10 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
   };
 
   const saveQuizToDatabase = async (quizQuestions: any[]) => {
-    // Create a new quiz
     const { data: createdQuiz, error: quizError } = await supabase
       .from("quizzes")
       .insert({
-        application_id: crypto.randomUUID(), // This would normally be linked to an application
+        application_id: crypto.randomUUID(),
         status: "pending",
         updated_at: new Date().toISOString()
       })
@@ -131,10 +125,8 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
 
     const quizId = createdQuiz.id;
 
-    // Add questions to the quiz
     const questionsToInsert = [];
 
-    // Process each skill's questions
     for (const skillData of quizQuestions) {
       if (skillData.questions && Array.isArray(skillData.questions)) {
         for (const question of skillData.questions) {
@@ -221,9 +213,9 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
                 value={questionsPerSkill}
                 onChange={(e) => setQuestionsPerSkill(Number(e.target.value))}
               >
-                <option value="3">3 questions</option>
                 <option value="5">5 questions</option>
-                <option value="10">10 questions</option>
+                <option value="10" selected>10 questions</option>
+                <option value="15">15 questions</option>
               </select>
             </div>
 

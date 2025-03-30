@@ -57,7 +57,7 @@ serve(async (req) => {
 
     // Parse request body
     const requestData: RequestData = await req.json();
-    const { skills, questionsPerSkill = 5 } = requestData;
+    const { skills, questionsPerSkill = 10 } = requestData; // Default to 10 questions per skill
 
     if (!skills || !Array.isArray(skills) || skills.length === 0) {
       return new Response(
@@ -69,11 +69,15 @@ serve(async (req) => {
       );
     }
 
+    console.log(`Generating quiz questions for ${skills.length} skills, ${questionsPerSkill} questions per skill`);
+
     // Process each skill and generate questions
     const results = await Promise.all(
       skills.map(async (skill) => {
         try {
+          console.log(`Generating questions for skill: ${skill.name} at proficiency level ${skill.proficiency}`);
           const questions = await generateQuestionsForSkill(skill, questionsPerSkill);
+          console.log(`Generated ${questions.length} questions for ${skill.name}`);
           return {
             skill_id: skill.id,
             skill_name: skill.name,
@@ -136,8 +140,13 @@ Make sure the difficulty matches the proficiency level:
 - Level 3: Good working knowledge and practical skills
 - Level 4: Advanced concepts and problem-solving skills
 - Level 5: Expert-level understanding and deep technical knowledge
+
+The questions should be varied and cover different aspects of the skill.
+Make the questions challenging but fair for the given proficiency level.
+Ensure all options are plausible but only one is clearly correct.
 `;
 
+    console.log("Sending request to OpenAI");
     const response = await openAIClient.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -145,22 +154,35 @@ Make sure the difficulty matches the proficiency level:
         { role: "user", content: prompt }
       ],
       temperature: 0.7,
-      max_tokens: 2500,
+      max_tokens: 4000, // Increased token limit to handle more questions
+      response_format: { type: "json_object" }, // Request JSON format specifically
     });
 
+    console.log("Received response from OpenAI");
+    
     try {
       const content = response.choices[0]?.message.content || "";
-      // Extract the JSON part from the response
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
       
-      // Fallback to mock data if parsing fails
-      console.error("Error parsing OpenAI response, using fallback mock data");
-      return generateMockQuestions(skill, questionsCount);
+      // Parse the JSON content
+      const parsedContent = JSON.parse(content);
+      
+      // Check if the content contains a questions array
+      if (Array.isArray(parsedContent)) {
+        return parsedContent;
+      } else if (parsedContent.questions && Array.isArray(parsedContent.questions)) {
+        return parsedContent.questions;
+      } else {
+        // Extract any array that might be in the response
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          return JSON.parse(jsonMatch[0]);
+        }
+        
+        console.error("Unexpected OpenAI response format:", content);
+        return generateMockQuestions(skill, questionsCount);
+      }
     } catch (parseError) {
-      console.error("Error parsing OpenAI response:", parseError);
+      console.error("Error parsing OpenAI response:", parseError, "Response was:", response.choices[0]?.message.content);
       return generateMockQuestions(skill, questionsCount);
     }
   } catch (error) {
