@@ -115,7 +115,9 @@ const QuizList = () => {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {selectedQuiz?.applications?.jobs?.title} - Skills Assessment
+              {selectedQuiz?.applications?.jobs?.title 
+                ? `${selectedQuiz.applications.jobs.title} - Skills Assessment`
+                : 'Skills Assessment'}
             </DialogTitle>
           </DialogHeader>
           {selectedQuiz && (
@@ -128,55 +130,60 @@ const QuizList = () => {
         </DialogContent>
       </Dialog>
 
-      {quizzes.map((quiz) => (
-        <Card key={quiz.id}>
-          <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-            <div>
-              <CardTitle>
-                {quiz.applications.jobs.title} - Skills Assessment
-              </CardTitle>
-              <p className="text-sm text-gray-500 mt-1">
-                Created: {new Date(quiz.created_at).toLocaleDateString()}
-              </p>
-            </div>
-            <Badge className={getStatusBadgeColor(quiz.status)}>
-              {quiz.status.replace("_", " ").charAt(0).toUpperCase() + quiz.status.replace("_", " ").slice(1)}
-            </Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {quiz.status === "completed" && (
-                <div>
-                  <p className="text-sm font-medium">Your Score</p>
-                  <div className="flex items-center mt-1">
-                    <p className="text-xl font-bold">{quiz.score}%</p>
-                    <div className="ml-4 flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-primary" 
-                        style={{ width: `${quiz.score}%` }}
-                      ></div>
+      {quizzes.map((quiz) => {
+        // Add a null check for nested objects
+        const jobTitle = quiz.applications?.jobs?.title || 'Unnamed Job';
+        
+        return (
+          <Card key={quiz.id}>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+              <div>
+                <CardTitle>
+                  {jobTitle} - Skills Assessment
+                </CardTitle>
+                <p className="text-sm text-gray-500 mt-1">
+                  Created: {new Date(quiz.created_at).toLocaleDateString()}
+                </p>
+              </div>
+              <Badge className={getStatusBadgeColor(quiz.status)}>
+                {quiz.status.replace("_", " ").charAt(0).toUpperCase() + quiz.status.replace("_", " ").slice(1)}
+              </Badge>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {quiz.status === "completed" && (
+                  <div>
+                    <p className="text-sm font-medium">Your Score</p>
+                    <div className="flex items-center mt-1">
+                      <p className="text-xl font-bold">{quiz.score}%</p>
+                      <div className="ml-4 flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary" 
+                          style={{ width: `${quiz.score}%` }}
+                        ></div>
+                      </div>
                     </div>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Completed on: {quiz.completed_at ? new Date(quiz.completed_at).toLocaleDateString() : 'N/A'}
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-500 mt-2">
-                    Completed on: {new Date(quiz.completed_at).toLocaleDateString()}
-                  </p>
-                </div>
-              )}
+                )}
 
-              {quiz.status !== "completed" && (
-                <Button
-                  onClick={() => {
-                    setSelectedQuiz(quiz);
-                    setDialogOpen(true);
-                  }}
-                >
-                  {quiz.status === "in_progress" ? "Continue Quiz" : "Start Quiz"}
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+                {quiz.status !== "completed" && (
+                  <Button
+                    onClick={() => {
+                      setSelectedQuiz(quiz);
+                      setDialogOpen(true);
+                    }}
+                  >
+                    {quiz.status === "in_progress" ? "Continue Quiz" : "Start Quiz"}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };
