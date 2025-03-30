@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -112,9 +111,9 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
     }
   };
 
-  const saveQuizToDatabase = async (quizData: any[]) => {
+  const saveQuizToDatabase = async (quizQuestions: any[]) => {
     // Create a new quiz
-    const { data: quizData, error: quizError } = await supabase
+    const { data: createdQuiz, error: quizError } = await supabase
       .from("quizzes")
       .insert({
         application_id: crypto.randomUUID(), // This would normally be linked to an application
@@ -126,13 +125,17 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
 
     if (quizError) throw quizError;
 
-    const quizId = quizData.id;
+    if (!createdQuiz) {
+      throw new Error("Failed to create quiz");
+    }
+
+    const quizId = createdQuiz.id;
 
     // Add questions to the quiz
     const questionsToInsert = [];
 
     // Process each skill's questions
-    for (const skillData of quizData) {
+    for (const skillData of quizQuestions) {
       if (skillData.questions && Array.isArray(skillData.questions)) {
         for (const question of skillData.questions) {
           questionsToInsert.push({
