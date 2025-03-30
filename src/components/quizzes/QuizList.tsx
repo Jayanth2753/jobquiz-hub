@@ -25,6 +25,25 @@ const QuizList = () => {
   const fetchQuizzes = async () => {
     try {
       setLoading(true);
+      
+      // First get applications submitted by the employee
+      const { data: applications, error: appError } = await supabase
+        .from("applications")
+        .select("id")
+        .eq("employee_id", userProfile.id);
+      
+      if (appError) throw appError;
+      
+      if (!applications || applications.length === 0) {
+        setQuizzes([]);
+        setLoading(false);
+        return;
+      }
+      
+      // Get application IDs
+      const applicationIds = applications.map(app => app.id);
+      
+      // Then get quizzes linked to those applications
       const { data, error } = await supabase
         .from("quizzes")
         .select(`
@@ -36,7 +55,7 @@ const QuizList = () => {
             )
           )
         `)
-        .eq("applications.employee_id", userProfile.id)
+        .in("application_id", applicationIds)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -84,7 +103,7 @@ const QuizList = () => {
     return (
       <div className="text-center py-12">
         <p className="text-lg text-gray-500">
-          You don't have any quizzes assigned yet.
+          You don't have any quizzes assigned yet. Apply for a job to get a skills assessment.
         </p>
       </div>
     );
@@ -129,8 +148,16 @@ const QuizList = () => {
               {quiz.status === "completed" && (
                 <div>
                   <p className="text-sm font-medium">Your Score</p>
-                  <p className="text-xl font-bold">{quiz.score}%</p>
-                  <p className="text-sm text-gray-500">
+                  <div className="flex items-center mt-1">
+                    <p className="text-xl font-bold">{quiz.score}%</p>
+                    <div className="ml-4 flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-primary" 
+                        style={{ width: `${quiz.score}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
                     Completed on: {new Date(quiz.completed_at).toLocaleDateString()}
                   </p>
                 </div>

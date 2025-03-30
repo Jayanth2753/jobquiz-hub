@@ -233,17 +233,48 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ employer = false })
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div>
+              <div className="bg-gray-50 p-3 rounded-md">
                 <p className="text-sm font-medium">Quiz Status</p>
-                <p className="text-sm">
-                  {app.quizzes && app.quizzes.length > 0 
-                    ? `${app.quizzes[0].status === 'completed' 
-                        ? 'Completed' 
-                        : 'Pending'
-                      }${app.quizzes[0].score !== null ? ` - Score: ${app.quizzes[0].score}%` : ''}`
-                    : 'No quiz assigned'
-                  }
-                </p>
+                {app.quizzes && app.quizzes.length > 0 ? (
+                  <div className="mt-1">
+                    <p className="text-sm">
+                      {app.quizzes[0].status === 'completed' 
+                        ? (
+                          <span className="flex items-center">
+                            <span className="text-green-600 font-medium">Completed</span>
+                            {app.quizzes[0].score !== null && (
+                              <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                                Score: {app.quizzes[0].score}%
+                              </span>
+                            )}
+                          </span>
+                        ) 
+                        : (
+                          <span className="text-amber-600">
+                            {app.quizzes[0].status === 'in_progress' ? 'In Progress' : 'Pending'}
+                          </span>
+                        )
+                      }
+                    </p>
+                    {employer && app.quizzes[0].status === 'completed' && app.quizzes[0].score !== null && (
+                      <div className="mt-2">
+                        <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary" 
+                            style={{ width: `${app.quizzes[0].score}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {app.quizzes[0].score >= 80 ? 'Excellent' : 
+                           app.quizzes[0].score >= 60 ? 'Good' : 
+                           app.quizzes[0].score >= 40 ? 'Average' : 'Needs Improvement'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 mt-1">No quiz assigned</p>
+                )}
               </div>
               
               {app.status === 'resume_requested' && !employer && (
