@@ -9,6 +9,7 @@ import { toast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useNavigate, useLocation } from "react-router-dom";
 import QuizTaker from "./QuizTaker";
+import SkillBasedQuizCreator from "./SkillBasedQuizCreator";
 
 interface QuizListProps {
   showPracticeQuizzes?: boolean;
@@ -22,6 +23,7 @@ const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
   const [loading, setLoading] = useState(true);
   const [selectedQuiz, setSelectedQuiz] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [createQuizDialogOpen, setCreateQuizDialogOpen] = useState(false);
 
   useEffect(() => {
     if (userProfile) {
@@ -111,6 +113,11 @@ const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
     setDialogOpen(false);
   };
 
+  const handleCreateQuizComplete = () => {
+    fetchQuizzes();
+    setCreateQuizDialogOpen(false);
+  };
+
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case "completed":
@@ -123,10 +130,6 @@ const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
     }
   };
 
-  const handleGenerateQuiz = () => {
-    navigate("/generate-quiz");
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center py-8">
@@ -135,30 +138,23 @@ const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
     );
   }
 
-  if (quizzes.length === 0) {
-    return (
-      <div className="text-center py-8 space-y-4">
-        <p className="text-lg text-gray-500">
-          {showPracticeQuizzes 
-            ? "You don't have any practice quizzes yet." 
-            : "You don't have any job quizzes assigned yet. Apply for a job to get a skills assessment."}
-        </p>
-        {showPracticeQuizzes && (
-          <Button onClick={handleGenerateQuiz}>
-            Generate a Practice Quiz
-          </Button>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {showPracticeQuizzes && (
         <div className="flex justify-end mb-4">
-          <Button onClick={handleGenerateQuiz}>
-            Generate New Quiz
-          </Button>
+          <Dialog open={createQuizDialogOpen} onOpenChange={setCreateQuizDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                Create Practice Quiz
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Create Practice Quiz</DialogTitle>
+              </DialogHeader>
+              <SkillBasedQuizCreator />
+            </DialogContent>
+          </Dialog>
         </div>
       )}
       
@@ -181,62 +177,77 @@ const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
         </DialogContent>
       </Dialog>
 
-      {quizzes.map((quiz) => {
-        // Add a null check for nested objects
-        const jobTitle = quiz.applications?.jobs?.title || 'Practice Quiz';
-        const questionCount = quiz.quiz_questions_count || 0;
-        
-        return (
-          <Card key={quiz.id}>
-            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-              <div>
-                <CardTitle>
-                  {jobTitle} - Skills Assessment
-                </CardTitle>
-                <p className="text-sm text-gray-500 mt-1">
-                  Created: {new Date(quiz.created_at).toLocaleDateString()}
-                  {questionCount > 0 && ` • ${questionCount} questions`}
-                </p>
-              </div>
-              <Badge className={getStatusBadgeColor(quiz.status)}>
-                {quiz.status.replace("_", " ").charAt(0).toUpperCase() + quiz.status.replace("_", " ").slice(1)}
-              </Badge>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {quiz.status === "completed" && (
-                  <div>
-                    <p className="text-sm font-medium">Your Score</p>
-                    <div className="flex items-center mt-1">
-                      <p className="text-xl font-bold">{quiz.score}%</p>
-                      <div className="ml-4 flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-primary" 
-                          style={{ width: `${quiz.score}%` }}
-                        ></div>
+      {quizzes.length === 0 ? (
+        <div className="text-center py-8 space-y-4">
+          <p className="text-lg text-gray-500">
+            {showPracticeQuizzes 
+              ? "You don't have any practice quizzes yet." 
+              : "You don't have any job quizzes assigned yet. Apply for a job to get a skills assessment."}
+          </p>
+          {showPracticeQuizzes && (
+            <Button onClick={() => setCreateQuizDialogOpen(true)}>
+              Create Practice Quiz
+            </Button>
+          )}
+        </div>
+      ) : (
+        quizzes.map((quiz) => {
+          // Add a null check for nested objects
+          const jobTitle = quiz.applications?.jobs?.title || 'Practice Quiz';
+          const questionCount = quiz.quiz_questions_count || 0;
+          
+          return (
+            <Card key={quiz.id}>
+              <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                <div>
+                  <CardTitle>
+                    {jobTitle} - Skills Assessment
+                  </CardTitle>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Created: {new Date(quiz.created_at).toLocaleDateString()}
+                    {questionCount > 0 && ` • ${questionCount} questions`}
+                  </p>
+                </div>
+                <Badge className={getStatusBadgeColor(quiz.status)}>
+                  {quiz.status.replace("_", " ").charAt(0).toUpperCase() + quiz.status.replace("_", " ").slice(1)}
+                </Badge>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {quiz.status === "completed" && (
+                    <div>
+                      <p className="text-sm font-medium">Your Score</p>
+                      <div className="flex items-center mt-1">
+                        <p className="text-xl font-bold">{quiz.score}%</p>
+                        <div className="ml-4 flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary" 
+                            style={{ width: `${quiz.score}%` }}
+                          ></div>
+                        </div>
                       </div>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Completed on: {quiz.completed_at ? new Date(quiz.completed_at).toLocaleDateString() : 'N/A'}
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-500 mt-2">
-                      Completed on: {quiz.completed_at ? new Date(quiz.completed_at).toLocaleDateString() : 'N/A'}
-                    </p>
-                  </div>
-                )}
+                  )}
 
-                {quiz.status !== "completed" && (
-                  <Button
-                    onClick={() => {
-                      setSelectedQuiz(quiz);
-                      setDialogOpen(true);
-                    }}
-                  >
-                    {quiz.status === "in_progress" ? "Continue Quiz" : "Start Quiz"}
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+                  {quiz.status !== "completed" && (
+                    <Button
+                      onClick={() => {
+                        setSelectedQuiz(quiz);
+                        setDialogOpen(true);
+                      }}
+                    >
+                      {quiz.status === "in_progress" ? "Continue Quiz" : "Start Quiz"}
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })
+      )}
     </div>
   );
 };

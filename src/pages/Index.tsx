@@ -35,13 +35,6 @@ const Index = () => {
                 <Link to="/dashboard">
                   <Button size="lg">Go to Dashboard</Button>
                 </Link>
-                {userRole === 'employee' && (
-                  <Link to="/generate-quiz">
-                    <Button size="lg" variant="outline">
-                      <Sparkles className="mr-2 h-4 w-4" /> Generate Quiz
-                    </Button>
-                  </Link>
-                )}
               </div>
             )}
           </div>

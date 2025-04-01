@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
-import { ArrowRight, Briefcase, Check, Sparkles, Brain } from "lucide-react";
+import { ArrowRight, Briefcase, Check, Brain } from "lucide-react";
 import JobsList from "@/components/jobs/JobsList";
 import ApplicationsList from "@/components/applications/ApplicationsList";
 import QuizList from "@/components/quizzes/QuizList";
@@ -82,7 +82,7 @@ const EmployeeDashboard: React.FC = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center">
@@ -130,42 +130,20 @@ const EmployeeDashboard: React.FC = () => {
         <Card className="bg-primary/5 border-primary/30">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center text-primary">
-              <Sparkles className="mr-2 h-5 w-5" />
-              Generate Quiz
+              <Brain className="mr-2 h-5 w-5" />
+              Practice Quizzes
             </CardTitle>
             <CardDescription>Test your skills</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm">
-              Create a personalized quiz based on your skills and proficiency levels.
+              Take quizzes based on your skills and proficiency levels to practice and improve.
             </p>
           </CardContent>
           <CardFooter>
             <Button asChild className="w-full justify-between">
-              <Link to="/generate-quiz">
-                Generate Quiz <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          </CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center">
-              <Brain className="mr-2 h-5 w-5" />
-              Practice Quizzes
-            </CardTitle>
-            <CardDescription>Review your quizzes</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">
-              Access all your practice quizzes and track your learning progress.
-            </p>
-          </CardContent>
-          <CardFooter>
-            <Button asChild variant="secondary" className="w-full justify-between">
               <Link to="/dashboard?tab=practice-quizzes">
-                View Quizzes <ArrowRight className="h-4 w-4" />
+                Take Quiz <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
           </CardFooter>
@@ -221,7 +199,7 @@ const EmployeeDashboard: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle>Practice Quizzes</CardTitle>
-              <CardDescription>Review and take your practice skills assessments</CardDescription>
+              <CardDescription>Take quizzes based on your skills</CardDescription>
             </CardHeader>
             <CardContent>
               <QuizList showPracticeQuizzes={true} />
