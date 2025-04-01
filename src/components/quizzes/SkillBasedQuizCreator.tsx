@@ -105,13 +105,29 @@ const SkillBasedQuizCreator: React.FC<SkillBasedQuizCreatorProps> = ({ onComplet
         proficiency: proficiencyLevel
       };
 
+      // First, create the quiz record with the employee_id
+      const { data: quizData, error: quizError } = await supabase
+        .from("quizzes")
+        .insert({
+          status: "pending",
+          employee_id: userProfile.id // Use employee_id for practice quizzes
+        })
+        .select()
+        .single();
+
+      if (quizError) throw quizError;
+
+      console.log("Created quiz record:", quizData);
+      const quizId = quizData.id;
+
       console.log("Creating quiz for skill:", skillData);
 
+      // Then generate questions
       const { data, error } = await supabase.functions.invoke("generate-quiz-questions", {
         body: { 
           skills: [skillData],
           questionsPerSkill,
-          employeeId: userProfile.id // Make sure the employee ID is included
+          quizId
         }
       });
 
@@ -120,14 +136,7 @@ const SkillBasedQuizCreator: React.FC<SkillBasedQuizCreatorProps> = ({ onComplet
         throw error;
       }
 
-      if (!data) {
-        console.error("No data returned from quiz generation");
-        throw new Error("No data returned from quiz generation");
-      }
-
       console.log("Quiz generation response:", data);
-      
-      const quizId = data.quizId;
       
       if (quizId) {
         toast({

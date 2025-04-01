@@ -16,6 +16,7 @@ interface RequestData {
   }>;
   questionsPerSkill?: number;
   applicationId?: string; // Optional application ID for job-related quizzes
+  quizId?: string; // For practice quizzes
 }
 
 serve(async (req) => {
@@ -58,7 +59,7 @@ serve(async (req) => {
 
     // Parse request body
     const requestData: RequestData = await req.json();
-    const { skills, questionsPerSkill = 10, applicationId } = requestData;
+    const { skills, questionsPerSkill = 10, applicationId, quizId } = requestData;
 
     if (!skills || !Array.isArray(skills) || skills.length === 0) {
       return new Response(
@@ -70,7 +71,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Generating quiz questions for ${skills.length} skills, ${questionsPerSkill} questions per skill, ApplicationId: ${applicationId || 'N/A'}`);
+    console.log(`Generating quiz questions for ${skills.length} skills, ${questionsPerSkill} questions per skill, ApplicationId: ${applicationId || 'N/A'}, QuizId: ${quizId || 'N/A'}`);
 
     // Process each skill and generate questions
     const results = await Promise.all(
@@ -95,14 +96,17 @@ serve(async (req) => {
       })
     );
 
-    // Create quiz record in the database (works for both job applications and practice quizzes)
-    let quizId = null;
-    if (user) {
+    // Create or update quiz record in the database
+    let finalQuizId = quizId;
+    
+    if (!finalQuizId && user) {
       try {
+        // For job applications or if no quiz ID was provided
         const { data: quiz, error } = await supabaseClient
           .from('quizzes')
           .insert({
-            application_id: applicationId || crypto.randomUUID(), // Use provided applicationId or generate a random UUID for practice quizzes
+            application_id: applicationId, // This can be null for practice quizzes
+            employee_id: user.id, // Set the employee_id for practice quizzes
             status: 'pending',
             updated_at: new Date().toISOString()
           })
@@ -112,44 +116,46 @@ serve(async (req) => {
         if (error) {
           console.error("Error creating quiz record:", error);
         } else {
-          quizId = quiz.id;
-          console.log(`Created quiz with ID: ${quizId}`);
-
-          // Insert quiz questions
-          const questionsToInsert = [];
-          for (const skillData of results) {
-            if (!skillData.questions) continue;
-            
-            for (const question of skillData.questions) {
-              if (!question.question || !question.options || !question.correct_answer) continue;
-              
-              questionsToInsert.push({
-                quiz_id: quizId,
-                skill_id: skillData.skill_id,
-                question: question.question,
-                options: Array.isArray(question.options) ? JSON.stringify(question.options) : question.options,
-                correct_answer: question.correct_answer,
-              });
-            }
-          }
-          
-          if (questionsToInsert.length > 0) {
-            const { error: questionsError } = await supabaseClient
-              .from('quiz_questions')
-              .insert(questionsToInsert);
-
-            if (questionsError) {
-              console.error("Error inserting questions:", questionsError);
-            }
-          }
+          finalQuizId = quiz.id;
+          console.log(`Created quiz with ID: ${finalQuizId}`);
         }
       } catch (dbError) {
         console.error("Database error:", dbError);
       }
     }
 
+    // Insert quiz questions if we have a quiz ID
+    if (finalQuizId) {
+      const questionsToInsert = [];
+      for (const skillData of results) {
+        if (!skillData.questions) continue;
+        
+        for (const question of skillData.questions) {
+          if (!question.question || !question.options || !question.correct_answer) continue;
+          
+          questionsToInsert.push({
+            quiz_id: finalQuizId,
+            skill_id: skillData.skill_id,
+            question: question.question,
+            options: Array.isArray(question.options) ? JSON.stringify(question.options) : question.options,
+            correct_answer: question.correct_answer,
+          });
+        }
+      }
+      
+      if (questionsToInsert.length > 0) {
+        const { error: questionsError } = await supabaseClient
+          .from('quiz_questions')
+          .insert(questionsToInsert);
+
+        if (questionsError) {
+          console.error("Error inserting questions:", questionsError);
+        }
+      }
+    }
+
     return new Response(
-      JSON.stringify({ data: results, quizId }),
+      JSON.stringify({ data: results, quizId: finalQuizId }),
       { 
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

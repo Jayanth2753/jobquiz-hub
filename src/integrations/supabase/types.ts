@@ -321,27 +321,30 @@ export type Database = {
       }
       quizzes: {
         Row: {
-          application_id: string
+          application_id: string | null
           completed_at: string | null
           created_at: string
+          employee_id: string | null
           id: string
           score: number | null
           status: string
           updated_at: string
         }
         Insert: {
-          application_id: string
+          application_id?: string | null
           completed_at?: string | null
           created_at?: string
+          employee_id?: string | null
           id?: string
           score?: number | null
           status?: string
           updated_at?: string
         }
         Update: {
-          application_id?: string
+          application_id?: string | null
           completed_at?: string | null
           created_at?: string
+          employee_id?: string | null
           id?: string
           score?: number | null
           status?: string

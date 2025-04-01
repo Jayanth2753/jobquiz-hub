@@ -11,6 +11,21 @@ import { useNavigate, useLocation } from "react-router-dom";
 import QuizTaker from "./QuizTaker";
 import SkillBasedQuizCreator from "./SkillBasedQuizCreator";
 
+interface Quiz {
+  id: string;
+  status: string;
+  created_at: string;
+  completed_at: string | null;
+  score: number | null;
+  application_id: string | null;
+  quiz_questions_count?: number;
+  applications?: {
+    jobs?: {
+      title?: string;
+    } | null;
+  } | null;
+}
+
 interface QuizListProps {
   showPracticeQuizzes?: boolean;
 }
@@ -19,9 +34,9 @@ const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
   const { userProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedQuiz, setSelectedQuiz] = useState<any>(null);
+  const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [createQuizDialogOpen, setCreateQuizDialogOpen] = useState(false);
 
