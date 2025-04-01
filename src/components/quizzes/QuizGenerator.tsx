@@ -22,6 +22,7 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
   const [proficiencyMap, setProficiencyMap] = useState<Record<string, number>>({});
   const [saveToDatabase, setSaveToDatabase] = useState(true);
   const [questionsPerSkill, setQuestionsPerSkill] = useState(10);
+  const [quizType, setQuizType] = useState<'practice' | 'job'>('practice');
 
   const handleSkillsChange = (skills: any[]) => {
     setSelectedSkills(skills);
@@ -67,7 +68,9 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
       const { data, error } = await supabase.functions.invoke("generate-quiz-questions", {
         body: { 
           skills: skillsData,
-          questionsPerSkill
+          questionsPerSkill,
+          // Don't pass applicationId for practice quizzes
+          applicationId: quizType === 'job' ? undefined : undefined
         }
       });
 
@@ -83,24 +86,27 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
 
       console.log("Quiz generation response:", data);
 
-      let quizId = "";
-
-      if (saveToDatabase && userProfile) {
-        const quiz = await saveQuizToDatabase(data.data);
-        quizId = quiz.id;
-        if (onQuizGenerated) onQuizGenerated(quiz.id);
-        
+      // The quiz is already saved in the database by the edge function
+      const quizId = data.quizId;
+      
+      if (quizId) {
         toast({
           title: "Quiz Generated and Saved",
-          description: `Successfully generated a quiz with ${data.data.length} skills. You can find it in your assessments.`,
+          description: `Successfully generated a quiz with questions from ${data.data.length} skills.`,
         });
         
-        navigate("/dashboard");
+        // Navigate to dashboard with the practice-quizzes tab selected
+        navigate("/dashboard?tab=practice-quizzes");
       } else {
         toast({
           title: "Quiz Generated",
           description: `Successfully generated ${data.data.length} skills with customized questions.`,
         });
+      }
+      
+      // Call the callback if provided
+      if (onQuizGenerated && quizId) {
+        onQuizGenerated(quizId);
       }
 
     } catch (error: any) {
@@ -113,78 +119,6 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const saveQuizToDatabase = async (quizQuestions: any[]) => {
-    console.log("Saving quiz to database:", quizQuestions);
-
-    const { data: createdQuiz, error: quizError } = await supabase
-      .from("quizzes")
-      .insert({
-        application_id: crypto.randomUUID(),
-        status: "pending",
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (quizError) {
-      console.error("Error creating quiz:", quizError);
-      throw quizError;
-    }
-
-    if (!createdQuiz) {
-      throw new Error("Failed to create quiz");
-    }
-
-    const quizId = createdQuiz.id;
-    console.log("Created quiz with ID:", quizId);
-
-    const questionsToInsert = [];
-
-    for (const skillData of quizQuestions) {
-      if (!skillData.questions) {
-        console.warn(`No questions for skill ${skillData.skill_name}`);
-        continue;
-      }
-      
-      if (!Array.isArray(skillData.questions)) {
-        console.warn(`Questions for skill ${skillData.skill_name} is not an array:`, skillData.questions);
-        continue;
-      }
-
-      console.log(`Processing ${skillData.questions.length} questions for skill ${skillData.skill_name}`);
-      
-      for (const question of skillData.questions) {
-        if (!question.question || !question.options || !question.correct_answer) {
-          console.warn("Skipping invalid question:", question);
-          continue;
-        }
-        
-        questionsToInsert.push({
-          quiz_id: quizId,
-          skill_id: skillData.skill_id,
-          question: question.question,
-          options: Array.isArray(question.options) ? JSON.stringify(question.options) : question.options,
-          correct_answer: question.correct_answer
-        });
-      }
-    }
-
-    console.log(`Inserting ${questionsToInsert.length} questions`);
-
-    if (questionsToInsert.length > 0) {
-      const { error: questionsError } = await supabase
-        .from("quiz_questions")
-        .insert(questionsToInsert);
-
-      if (questionsError) {
-        console.error("Error inserting questions:", questionsError);
-        throw questionsError;
-      }
-    }
-
-    return { id: quizId, questions: questionsToInsert.length };
   };
 
   return (

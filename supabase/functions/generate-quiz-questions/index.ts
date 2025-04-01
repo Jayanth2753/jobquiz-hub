@@ -15,6 +15,7 @@ interface RequestData {
     proficiency: number;
   }>;
   questionsPerSkill?: number;
+  applicationId?: string; // Optional application ID for job-related quizzes
 }
 
 serve(async (req) => {
@@ -57,7 +58,7 @@ serve(async (req) => {
 
     // Parse request body
     const requestData: RequestData = await req.json();
-    const { skills, questionsPerSkill = 10 } = requestData; // Default to 10 questions per skill
+    const { skills, questionsPerSkill = 10, applicationId } = requestData;
 
     if (!skills || !Array.isArray(skills) || skills.length === 0) {
       return new Response(
@@ -69,7 +70,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Generating quiz questions for ${skills.length} skills, ${questionsPerSkill} questions per skill`);
+    console.log(`Generating quiz questions for ${skills.length} skills, ${questionsPerSkill} questions per skill, ApplicationId: ${applicationId || 'N/A'}`);
 
     // Process each skill and generate questions
     const results = await Promise.all(
@@ -94,8 +95,61 @@ serve(async (req) => {
       })
     );
 
+    // Create quiz record in the database (works for both job applications and practice quizzes)
+    let quizId = null;
+    if (user) {
+      try {
+        const { data: quiz, error } = await supabaseClient
+          .from('quizzes')
+          .insert({
+            application_id: applicationId || crypto.randomUUID(), // Use provided applicationId or generate a random UUID for practice quizzes
+            status: 'pending',
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error("Error creating quiz record:", error);
+        } else {
+          quizId = quiz.id;
+          console.log(`Created quiz with ID: ${quizId}`);
+
+          // Insert quiz questions
+          const questionsToInsert = [];
+          for (const skillData of results) {
+            if (!skillData.questions) continue;
+            
+            for (const question of skillData.questions) {
+              if (!question.question || !question.options || !question.correct_answer) continue;
+              
+              questionsToInsert.push({
+                quiz_id: quizId,
+                skill_id: skillData.skill_id,
+                question: question.question,
+                options: Array.isArray(question.options) ? JSON.stringify(question.options) : question.options,
+                correct_answer: question.correct_answer,
+              });
+            }
+          }
+          
+          if (questionsToInsert.length > 0) {
+            const { error: questionsError } = await supabaseClient
+              .from('quiz_questions')
+              .insert(questionsToInsert);
+
+            if (questionsError) {
+              console.error("Error inserting questions:", questionsError);
+            }
+          }
+        }
+      } catch (dbError) {
+        console.error("Database error:", dbError);
+      }
+    }
+
     return new Response(
-      JSON.stringify({ data: results }),
+      JSON.stringify({ data: results, quizId }),
       { 
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -186,7 +240,18 @@ Ensure all options are plausible but only one is clearly correct.
       }
       
       if (questions && Array.isArray(questions)) {
-        return questions;
+        // Validate each question to ensure it has the required properties
+        const validQuestions = questions.filter(q => 
+          q.question && 
+          Array.isArray(q.options) && 
+          q.options.length === 4 && 
+          q.correct_answer && 
+          q.options.includes(q.correct_answer)
+        );
+        
+        if (validQuestions.length > 0) {
+          return validQuestions;
+        }
       }
       
       console.error("Unexpected OpenAI response format:", content);

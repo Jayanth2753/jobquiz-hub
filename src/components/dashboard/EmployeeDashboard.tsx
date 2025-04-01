@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
-import { ArrowRight, Briefcase, Check, Sparkles } from "lucide-react";
+import { ArrowRight, Briefcase, Check, Sparkles, Brain } from "lucide-react";
 import JobsList from "@/components/jobs/JobsList";
 import ApplicationsList from "@/components/applications/ApplicationsList";
 import QuizList from "@/components/quizzes/QuizList";
@@ -15,9 +15,12 @@ const EmployeeDashboard: React.FC = () => {
   const { userProfile } = useAuth();
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [practiceQuizzes, setPracticeQuizzes] = useState<any[]>([]);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(true);
 
   useEffect(() => {
     fetchJobs();
+    fetchPracticeQuizzes();
   }, []);
 
   const fetchJobs = async () => {
@@ -41,6 +44,35 @@ const EmployeeDashboard: React.FC = () => {
     }
   };
 
+  const fetchPracticeQuizzes = async () => {
+    if (!userProfile?.id) return;
+    
+    try {
+      setLoadingQuizzes(true);
+      
+      // Fetch quizzes that are not associated with a job application
+      // This will get practice quizzes by looking for quizzes without a matching application
+      const { data, error } = await supabase
+        .from("quizzes")
+        .select(`
+          *,
+          quiz_questions(count)
+        `)
+        .is("applications.id", null)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      setPracticeQuizzes(data || []);
+    } catch (error) {
+      console.error("Error fetching practice quizzes:", error);
+    } finally {
+      setLoadingQuizzes(false);
+    }
+  };
+
   return (
     <div className="flex flex-col space-y-6">
       <div className="flex flex-col space-y-2">
@@ -50,7 +82,7 @@ const EmployeeDashboard: React.FC = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center">
@@ -95,9 +127,9 @@ const EmployeeDashboard: React.FC = () => {
           </CardFooter>
         </Card>
 
-        <Card>
+        <Card className="bg-primary/5 border-primary/30">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center">
+            <CardTitle className="flex items-center text-primary">
               <Sparkles className="mr-2 h-5 w-5" />
               Generate Quiz
             </CardTitle>
@@ -109,9 +141,31 @@ const EmployeeDashboard: React.FC = () => {
             </p>
           </CardContent>
           <CardFooter>
-            <Button asChild variant="secondary" className="w-full justify-between">
+            <Button asChild className="w-full justify-between">
               <Link to="/generate-quiz">
                 Generate Quiz <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center">
+              <Brain className="mr-2 h-5 w-5" />
+              Practice Quizzes
+            </CardTitle>
+            <CardDescription>Review your quizzes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">
+              Access all your practice quizzes and track your learning progress.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild variant="secondary" className="w-full justify-between">
+              <Link to="/dashboard?tab=practice-quizzes">
+                View Quizzes <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
           </CardFooter>
@@ -119,10 +173,11 @@ const EmployeeDashboard: React.FC = () => {
       </div>
 
       <Tabs defaultValue="applications" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="applications">My Applications</TabsTrigger>
           <TabsTrigger value="jobs">Available Jobs</TabsTrigger>
-          <TabsTrigger value="quizzes">Skill Assessments</TabsTrigger>
+          <TabsTrigger value="quizzes">Job Assessments</TabsTrigger>
+          <TabsTrigger value="practice-quizzes">Practice Quizzes</TabsTrigger>
         </TabsList>
         <TabsContent value="applications">
           <Card>
@@ -154,11 +209,22 @@ const EmployeeDashboard: React.FC = () => {
         <TabsContent value="quizzes">
           <Card>
             <CardHeader>
-              <CardTitle>Skill Assessments</CardTitle>
-              <CardDescription>View and complete your skill assessments</CardDescription>
+              <CardTitle>Job Assessments</CardTitle>
+              <CardDescription>View and complete your job skills assessments</CardDescription>
             </CardHeader>
             <CardContent>
-              <QuizList />
+              <QuizList showPracticeQuizzes={false} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="practice-quizzes">
+          <Card>
+            <CardHeader>
+              <CardTitle>Practice Quizzes</CardTitle>
+              <CardDescription>Review and take your practice skills assessments</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <QuizList showPracticeQuizzes={true} />
             </CardContent>
           </Card>
         </TabsContent>

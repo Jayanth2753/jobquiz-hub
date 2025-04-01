@@ -7,10 +7,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useNavigate, useLocation } from "react-router-dom";
 import QuizTaker from "./QuizTaker";
 
-const QuizList = () => {
+interface QuizListProps {
+  showPracticeQuizzes?: boolean;
+}
+
+const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
   const { userProfile } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedQuiz, setSelectedQuiz] = useState<any>(null);
@@ -20,49 +27,74 @@ const QuizList = () => {
     if (userProfile) {
       fetchQuizzes();
     }
-  }, [userProfile]);
+
+    // Check if we should show practice quizzes tab from URL
+    const searchParams = new URLSearchParams(location.search);
+    const tab = searchParams.get('tab');
+    if (tab === 'practice-quizzes' && !showPracticeQuizzes) {
+      // We're on the dashboard but need to show practice quizzes
+      const tabsElement = document.querySelector('[value="practice-quizzes"]') as HTMLElement;
+      if (tabsElement) {
+        tabsElement.click();
+      }
+    }
+  }, [userProfile, showPracticeQuizzes, location]);
 
   const fetchQuizzes = async () => {
     try {
       setLoading(true);
       
-      // First get applications submitted by the employee
-      const { data: applications, error: appError } = await supabase
-        .from("applications")
-        .select("id")
-        .eq("employee_id", userProfile.id);
-      
-      if (appError) throw appError;
-      
-      if (!applications || applications.length === 0) {
-        setQuizzes([]);
-        setLoading(false);
-        return;
-      }
-      
-      // Get application IDs
-      const applicationIds = applications.map(app => app.id);
-      
-      // Then get quizzes linked to those applications
-      const { data, error } = await supabase
-        .from("quizzes")
-        .select(`
-          *,
-          applications(
+      if (showPracticeQuizzes) {
+        // Fetch practice quizzes (those without a valid application reference)
+        const { data, error } = await supabase
+          .from("quizzes")
+          .select(`
             *,
-            jobs(
-              id, title
-            )
-          )
-        `)
-        .in("application_id", applicationIds)
-        .order("created_at", { ascending: false });
+            quiz_questions(count)
+          `)
+          .neq("application_id", null)
+          .is("applications.id", null)
+          .order("created_at", { ascending: false });
+          
+        if (error) throw error;
+        setQuizzes(data || []);
+      } else {
+        // Fetch job-related quizzes
+        const { data: applications, error: appError } = await supabase
+          .from("applications")
+          .select("id")
+          .eq("employee_id", userProfile.id);
+        
+        if (appError) throw appError;
+        
+        if (!applications || applications.length === 0) {
+          setQuizzes([]);
+          setLoading(false);
+          return;
+        }
+        
+        // Get application IDs
+        const applicationIds = applications.map(app => app.id);
+        
+        // Then get quizzes linked to those applications
+        const { data, error } = await supabase
+          .from("quizzes")
+          .select(`
+            *,
+            applications(
+              *,
+              jobs(
+                id, title
+              )
+            ),
+            quiz_questions(count)
+          `)
+          .in("application_id", applicationIds)
+          .order("created_at", { ascending: false });
 
-      if (error) {
-        throw error;
+        if (error) throw error;
+        setQuizzes(data || []);
       }
-
-      setQuizzes(data || []);
     } catch (error: any) {
       toast({
         title: "Error fetching quizzes",
@@ -91,6 +123,10 @@ const QuizList = () => {
     }
   };
 
+  const handleGenerateQuiz = () => {
+    navigate("/generate-quiz");
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-8">
@@ -101,16 +137,31 @@ const QuizList = () => {
 
   if (quizzes.length === 0) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-8 space-y-4">
         <p className="text-lg text-gray-500">
-          You don't have any quizzes assigned yet. Apply for a job to get a skills assessment.
+          {showPracticeQuizzes 
+            ? "You don't have any practice quizzes yet." 
+            : "You don't have any job quizzes assigned yet. Apply for a job to get a skills assessment."}
         </p>
+        {showPracticeQuizzes && (
+          <Button onClick={handleGenerateQuiz}>
+            Generate a Practice Quiz
+          </Button>
+        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {showPracticeQuizzes && (
+        <div className="flex justify-end mb-4">
+          <Button onClick={handleGenerateQuiz}>
+            Generate New Quiz
+          </Button>
+        </div>
+      )}
+      
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -132,7 +183,8 @@ const QuizList = () => {
 
       {quizzes.map((quiz) => {
         // Add a null check for nested objects
-        const jobTitle = quiz.applications?.jobs?.title || 'Unnamed Job';
+        const jobTitle = quiz.applications?.jobs?.title || 'Practice Quiz';
+        const questionCount = quiz.quiz_questions_count || 0;
         
         return (
           <Card key={quiz.id}>
@@ -143,6 +195,7 @@ const QuizList = () => {
                 </CardTitle>
                 <p className="text-sm text-gray-500 mt-1">
                   Created: {new Date(quiz.created_at).toLocaleDateString()}
+                  {questionCount > 0 && ` • ${questionCount} questions`}
                 </p>
               </div>
               <Badge className={getStatusBadgeColor(quiz.status)}>
