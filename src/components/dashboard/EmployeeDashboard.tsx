@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { ArrowRight, Briefcase, Check, Brain } from "lucide-react";
 import JobsList from "@/components/jobs/JobsList";
 import ApplicationsList from "@/components/applications/ApplicationsList";
@@ -15,12 +15,12 @@ const EmployeeDashboard: React.FC = () => {
   const { userProfile } = useAuth();
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [practiceQuizzes, setPracticeQuizzes] = useState<any[]>([]);
-  const [loadingQuizzes, setLoadingQuizzes] = useState(true);
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const defaultTab = searchParams.get('tab') || 'applications';
 
   useEffect(() => {
     fetchJobs();
-    fetchPracticeQuizzes();
   }, []);
 
   const fetchJobs = async () => {
@@ -41,35 +41,6 @@ const EmployeeDashboard: React.FC = () => {
       console.error("Error fetching jobs:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchPracticeQuizzes = async () => {
-    if (!userProfile?.id) return;
-    
-    try {
-      setLoadingQuizzes(true);
-      
-      // Fetch quizzes that are not associated with a job application
-      // This will get practice quizzes by looking for quizzes without a matching application
-      const { data, error } = await supabase
-        .from("quizzes")
-        .select(`
-          *,
-          quiz_questions(count)
-        `)
-        .is("applications.id", null)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        throw error;
-      }
-
-      setPracticeQuizzes(data || []);
-    } catch (error) {
-      console.error("Error fetching practice quizzes:", error);
-    } finally {
-      setLoadingQuizzes(false);
     }
   };
 
@@ -98,7 +69,7 @@ const EmployeeDashboard: React.FC = () => {
           </CardContent>
           <CardFooter>
             <Button asChild variant="secondary" className="w-full justify-between">
-              <Link to="/dashboard">
+              <Link to="/dashboard?tab=jobs">
                 Browse Jobs <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -150,7 +121,7 @@ const EmployeeDashboard: React.FC = () => {
         </Card>
       </div>
 
-      <Tabs defaultValue="applications" className="w-full">
+      <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="applications">My Applications</TabsTrigger>
           <TabsTrigger value="jobs">Available Jobs</TabsTrigger>

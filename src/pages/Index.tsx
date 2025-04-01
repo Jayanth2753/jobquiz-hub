@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Sparkles, Briefcase, CheckCircle } from "lucide-react";
+import { Sparkles, Briefcase, CheckCircle, Brain } from "lucide-react";
 
 const Index = () => {
   const { user, userRole } = useAuth();
@@ -35,6 +35,13 @@ const Index = () => {
                 <Link to="/dashboard">
                   <Button size="lg">Go to Dashboard</Button>
                 </Link>
+                {userRole === "employee" && (
+                  <Link to="/dashboard?tab=practice-quizzes">
+                    <Button size="lg" variant="outline">
+                      Practice Quizzes
+                    </Button>
+                  </Link>
+                )}
               </div>
             )}
           </div>

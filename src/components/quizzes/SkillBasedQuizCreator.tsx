@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +17,11 @@ interface Skill {
   proficiency?: number;
 }
 
-const SkillBasedQuizCreator: React.FC = () => {
+interface SkillBasedQuizCreatorProps {
+  onComplete?: () => void;
+}
+
+const SkillBasedQuizCreator: React.FC<SkillBasedQuizCreatorProps> = ({ onComplete }) => {
   const { userProfile } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -105,7 +110,8 @@ const SkillBasedQuizCreator: React.FC = () => {
       const { data, error } = await supabase.functions.invoke("generate-quiz-questions", {
         body: { 
           skills: [skillData],
-          questionsPerSkill
+          questionsPerSkill,
+          employeeId: userProfile.id // Make sure the employee ID is included
         }
       });
 
@@ -129,7 +135,11 @@ const SkillBasedQuizCreator: React.FC = () => {
           description: `Successfully created a quiz for ${selectedSkill.name}.`,
         });
         
-        navigate("/dashboard?tab=practice-quizzes");
+        if (onComplete) {
+          onComplete();
+        } else {
+          navigate("/dashboard?tab=practice-quizzes");
+        }
       }
 
     } catch (error: any) {

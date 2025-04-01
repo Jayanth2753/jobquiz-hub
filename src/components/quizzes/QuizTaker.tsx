@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 interface QuizTakerProps {
   quizId: string;
-  applicationId: string;
+  applicationId?: string | null;
   onComplete: () => void;
 }
 
@@ -122,18 +122,22 @@ const QuizTaker: React.FC<QuizTakerProps> = ({
         })
         .eq("id", quizId);
 
-      // Update application status
-      await supabase
-        .from("applications")
-        .update({
-          status: "quiz_completed",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", applicationId);
+      // Update application status if this is a job quiz
+      if (applicationId) {
+        await supabase
+          .from("applications")
+          .update({
+            status: "quiz_completed",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", applicationId);
+      }
 
       toast({
         title: "Quiz Completed",
-        description: `You scored ${score}%. Your application has been updated.`,
+        description: applicationId
+          ? `You scored ${score}%. Your application has been updated.`
+          : `You scored ${score}% on your practice quiz.`,
       });
 
       onComplete();
@@ -181,7 +185,7 @@ const QuizTaker: React.FC<QuizTakerProps> = ({
                   {index + 1}. {question.question}
                 </h3>
                 <p className="text-sm text-gray-500">
-                  Skill: {question.skills.name}
+                  Skill: {question.skills?.name || "Unknown"}
                 </p>
               </div>
 

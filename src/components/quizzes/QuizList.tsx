@@ -47,18 +47,19 @@ const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
       setLoading(true);
       
       if (showPracticeQuizzes) {
-        // Fetch practice quizzes (those without a valid application reference)
+        // Fetch practice quizzes (those created without an application_id)
         const { data, error } = await supabase
           .from("quizzes")
           .select(`
             *,
             quiz_questions(count)
           `)
-          .neq("application_id", null)
-          .is("applications.id", null)
+          .is("application_id", null)
+          .eq("employee_id", userProfile.id)
           .order("created_at", { ascending: false });
           
         if (error) throw error;
+        console.log("Practice quizzes fetched:", data);
         setQuizzes(data || []);
       } else {
         // Fetch job-related quizzes
@@ -98,6 +99,7 @@ const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
         setQuizzes(data || []);
       }
     } catch (error: any) {
+      console.error("Error fetching quizzes:", error);
       toast({
         title: "Error fetching quizzes",
         description: error.message,
@@ -152,7 +154,7 @@ const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
               <DialogHeader>
                 <DialogTitle>Create Practice Quiz</DialogTitle>
               </DialogHeader>
-              <SkillBasedQuizCreator />
+              <SkillBasedQuizCreator onComplete={handleCreateQuizComplete} />
             </DialogContent>
           </Dialog>
         </div>
@@ -164,7 +166,7 @@ const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
             <DialogTitle>
               {selectedQuiz?.applications?.jobs?.title 
                 ? `${selectedQuiz.applications.jobs.title} - Skills Assessment`
-                : 'Skills Assessment'}
+                : 'Practice Skills Assessment'}
             </DialogTitle>
           </DialogHeader>
           {selectedQuiz && (
