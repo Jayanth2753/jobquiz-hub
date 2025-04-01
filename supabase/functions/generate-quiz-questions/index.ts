@@ -162,25 +162,35 @@ Ensure all options are plausible but only one is clearly correct.
     
     try {
       const content = response.choices[0]?.message.content || "";
+      console.log("Raw OpenAI response:", content);
       
       // Parse the JSON content
       const parsedContent = JSON.parse(content);
       
       // Check if the content contains a questions array
+      let questions;
       if (Array.isArray(parsedContent)) {
-        return parsedContent;
+        questions = parsedContent;
       } else if (parsedContent.questions && Array.isArray(parsedContent.questions)) {
-        return parsedContent.questions;
+        questions = parsedContent.questions;
       } else {
-        // Extract any array that might be in the response
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          return JSON.parse(jsonMatch[0]);
+        // Look for any array property in the response
+        for (const key in parsedContent) {
+          if (Array.isArray(parsedContent[key]) && parsedContent[key].length > 0) {
+            if (parsedContent[key][0].question) {
+              questions = parsedContent[key];
+              break;
+            }
+          }
         }
-        
-        console.error("Unexpected OpenAI response format:", content);
-        return generateMockQuestions(skill, questionsCount);
       }
+      
+      if (questions && Array.isArray(questions)) {
+        return questions;
+      }
+      
+      console.error("Unexpected OpenAI response format:", content);
+      return generateMockQuestions(skill, questionsCount);
     } catch (parseError) {
       console.error("Error parsing OpenAI response:", parseError, "Response was:", response.choices[0]?.message.content);
       return generateMockQuestions(skill, questionsCount);

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,6 +62,8 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
         proficiency: proficiencyMap[skill.id] || 3
       }));
 
+      console.log("Sending skills data to generate quiz:", skillsData);
+
       const { data, error } = await supabase.functions.invoke("generate-quiz-questions", {
         body: { 
           skills: skillsData,
@@ -68,11 +71,17 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error from edge function:", error);
+        throw error;
+      }
 
       if (!data) {
+        console.error("No data returned from quiz generation");
         throw new Error("No data returned from quiz generation");
       }
+
+      console.log("Quiz generation response:", data);
 
       let quizId = "";
 
@@ -98,7 +107,7 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
       console.error("Error generating quiz:", error);
       toast({
         title: "Error generating quiz",
-        description: error.message,
+        description: error.message || "Failed to generate quiz. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -107,6 +116,8 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
   };
 
   const saveQuizToDatabase = async (quizQuestions: any[]) => {
+    console.log("Saving quiz to database:", quizQuestions);
+
     const { data: createdQuiz, error: quizError } = await supabase
       .from("quizzes")
       .insert({
@@ -117,36 +128,60 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
       .select()
       .single();
 
-    if (quizError) throw quizError;
+    if (quizError) {
+      console.error("Error creating quiz:", quizError);
+      throw quizError;
+    }
 
     if (!createdQuiz) {
       throw new Error("Failed to create quiz");
     }
 
     const quizId = createdQuiz.id;
+    console.log("Created quiz with ID:", quizId);
 
     const questionsToInsert = [];
 
     for (const skillData of quizQuestions) {
-      if (skillData.questions && Array.isArray(skillData.questions)) {
-        for (const question of skillData.questions) {
-          questionsToInsert.push({
-            quiz_id: quizId,
-            skill_id: skillData.skill_id,
-            question: question.question,
-            options: JSON.stringify(question.options),
-            correct_answer: question.correct_answer
-          });
+      if (!skillData.questions) {
+        console.warn(`No questions for skill ${skillData.skill_name}`);
+        continue;
+      }
+      
+      if (!Array.isArray(skillData.questions)) {
+        console.warn(`Questions for skill ${skillData.skill_name} is not an array:`, skillData.questions);
+        continue;
+      }
+
+      console.log(`Processing ${skillData.questions.length} questions for skill ${skillData.skill_name}`);
+      
+      for (const question of skillData.questions) {
+        if (!question.question || !question.options || !question.correct_answer) {
+          console.warn("Skipping invalid question:", question);
+          continue;
         }
+        
+        questionsToInsert.push({
+          quiz_id: quizId,
+          skill_id: skillData.skill_id,
+          question: question.question,
+          options: Array.isArray(question.options) ? JSON.stringify(question.options) : question.options,
+          correct_answer: question.correct_answer
+        });
       }
     }
+
+    console.log(`Inserting ${questionsToInsert.length} questions`);
 
     if (questionsToInsert.length > 0) {
       const { error: questionsError } = await supabase
         .from("quiz_questions")
         .insert(questionsToInsert);
 
-      if (questionsError) throw questionsError;
+      if (questionsError) {
+        console.error("Error inserting questions:", questionsError);
+        throw questionsError;
+      }
     }
 
     return { id: quizId, questions: questionsToInsert.length };
@@ -214,7 +249,7 @@ const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onQuizGenerated }) => {
                 onChange={(e) => setQuestionsPerSkill(Number(e.target.value))}
               >
                 <option value="5">5 questions</option>
-                <option value="10" selected>10 questions</option>
+                <option value="10">10 questions</option>
                 <option value="15">15 questions</option>
               </select>
             </div>
