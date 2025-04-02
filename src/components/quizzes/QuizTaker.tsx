@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { toast } from "@/components/ui/use-toast";
-import { Card, CardContent } from "@/components/ui/card";
+import { useQuizQuestions } from "@/hooks/useQuizQuestions";
+import { useQuizSubmission } from "@/hooks/useQuizSubmission";
+import QuizQuestion from "./QuizQuestion";
+import QuizLoading from "./QuizLoading";
+import QuizEmpty from "./QuizEmpty";
 
 interface QuizTakerProps {
   quizId: string;
@@ -20,192 +20,38 @@ const QuizTaker: React.FC<QuizTakerProps> = ({
   onComplete,
 }) => {
   const { userProfile } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [questions, setQuestions] = useState<any[]>([]);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [retryCount, setRetryCount] = useState(0);
-  const [retryInProgress, setRetryInProgress] = useState(false);
-  const maxRetries = 5;
+  const { 
+    questions, 
+    loading, 
+    retryCount, 
+    retryInProgress, 
+    maxRetries, 
+    fetchQuizQuestions 
+  } = useQuizQuestions(quizId);
+  
+  const { 
+    submitting, 
+    answers, 
+    handleAnswerChange, 
+    handleSubmitQuiz, 
+    updateQuizStatus 
+  } = useQuizSubmission(quizId, applicationId, onComplete);
 
   useEffect(() => {
-    fetchQuizQuestions();
     updateQuizStatus();
   }, [quizId]);
 
-  // Auto-retry if no questions are found
-  useEffect(() => {
-    if (questions.length === 0 && retryCount < maxRetries && !loading && !retryInProgress) {
-      const timer = setTimeout(() => {
-        console.log(`Auto-retrying to fetch questions (attempt ${retryCount + 1}/${maxRetries})...`);
-        setRetryInProgress(true);
-        fetchQuizQuestions().finally(() => {
-          setRetryInProgress(false);
-          setRetryCount(prev => prev + 1);
-        });
-      }, 5000); // 5 second delay between retries
-      
-      return () => clearTimeout(timer);
-    }
-  }, [questions, loading, retryCount, retryInProgress]);
-
-  const fetchQuizQuestions = async () => {
-    try {
-      setLoading(true);
-      console.log(`Fetching questions for quiz ID: ${quizId}`);
-
-      const { data, error } = await supabase
-        .from("quiz_questions")
-        .select("*, skills(name)")
-        .eq("quiz_id", quizId);
-
-      if (error) {
-        throw error;
-      }
-
-      console.log(`Found ${data?.length || 0} questions for quiz ID: ${quizId}`, data);
-
-      // Parse options from JSON string if needed
-      const parsedQuestions = (data || []).map(q => ({
-        ...q,
-        options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options
-      }));
-
-      setQuestions(parsedQuestions);
-    } catch (error: any) {
-      console.error("Error fetching quiz questions:", error);
-      toast({
-        title: "Error fetching quiz questions",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateQuizStatus = async () => {
-    try {
-      await supabase
-        .from("quizzes")
-        .update({ status: "in_progress" })
-        .eq("id", quizId);
-    } catch (error) {
-      console.error("Error updating quiz status:", error);
-    }
-  };
-
-  const handleAnswerChange = (questionId: string, answer: string) => {
-    setAnswers({
-      ...answers,
-      [questionId]: answer,
-    });
-  };
-
-  const handleSubmitQuiz = async () => {
-    // Check if all questions are answered
-    if (Object.keys(answers).length !== questions.length) {
-      toast({
-        title: "Incomplete Quiz",
-        description: "Please answer all questions before submitting.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-
-      // Submit answers and calculate score
-      let correctAnswers = 0;
-
-      // Create quiz answers
-      for (const question of questions) {
-        const userAnswer = answers[question.id];
-        const isCorrect = userAnswer === question.correct_answer;
-        
-        if (isCorrect) correctAnswers++;
-
-        await supabase.from("quiz_answers").insert({
-          question_id: question.id,
-          answer: userAnswer,
-          is_correct: isCorrect,
-        });
-      }
-
-      // Calculate score as percentage
-      const score = Math.round((correctAnswers / questions.length) * 100);
-
-      // Update quiz status and score
-      await supabase
-        .from("quizzes")
-        .update({
-          status: "completed",
-          score: score,
-          completed_at: new Date().toISOString(),
-        })
-        .eq("id", quizId);
-
-      // Update application status if this is a job quiz
-      if (applicationId) {
-        await supabase
-          .from("applications")
-          .update({
-            status: "quiz_completed",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", applicationId);
-      }
-
-      toast({
-        title: "Quiz Completed",
-        description: applicationId
-          ? `You scored ${score}%. Your application has been updated.`
-          : `You scored ${score}% on your practice quiz.`,
-      });
-
-      onComplete();
-    } catch (error: any) {
-      console.error("Error submitting quiz:", error);
-      toast({
-        title: "Error submitting quiz",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   if (loading || retryInProgress) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-3"></div>
-        <p className="text-gray-500">
-          {loading ? "Loading quiz questions..." : "Refreshing questions..."}
-        </p>
-      </div>
-    );
+    return <QuizLoading isRefreshing={retryInProgress} />;
   }
 
   if (questions.length === 0) {
     return (
-      <div className="text-center py-8 space-y-4">
-        <p className="text-lg text-gray-500">
-          No questions found for this quiz. The system is still generating your quiz questions.
-        </p>
-        <p className="text-sm text-gray-400">
-          {retryCount < maxRetries 
-            ? `We've tried ${retryCount} times. Auto-retrying in 5 seconds...` 
-            : "We've tried several times but couldn't find your questions."}
-        </p>
-        <Button 
-          onClick={fetchQuizQuestions} 
-          className="mt-4"
-        >
-          Refresh Manually
-        </Button>
-      </div>
+      <QuizEmpty 
+        retryCount={retryCount} 
+        maxRetries={maxRetries} 
+        onRefresh={fetchQuizQuestions} 
+      />
     );
   }
 
@@ -216,37 +62,18 @@ const QuizTaker: React.FC<QuizTakerProps> = ({
       </p>
 
       {questions.map((question, index) => (
-        <Card key={question.id}>
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-medium">
-                  {index + 1}. {question.question}
-                </h3>
-                <p className="text-sm text-gray-500">
-                  Skill: {question.skills?.name || "Unknown"}
-                </p>
-              </div>
-
-              <RadioGroup
-                value={answers[question.id] || ""}
-                onValueChange={(value) => handleAnswerChange(question.id, value)}
-              >
-                {question.options.map((option: string) => (
-                  <div key={option} className="flex items-center space-x-2">
-                    <RadioGroupItem value={option} id={`${question.id}-${option}`} />
-                    <Label htmlFor={`${question.id}-${option}`}>{option}</Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-          </CardContent>
-        </Card>
+        <QuizQuestion
+          key={question.id}
+          question={question}
+          index={index}
+          answer={answers[question.id] || ""}
+          onAnswerChange={handleAnswerChange}
+        />
       ))}
 
       <div className="flex justify-end">
         <Button 
-          onClick={handleSubmitQuiz} 
+          onClick={() => handleSubmitQuiz(questions)} 
           disabled={submitting || Object.keys(answers).length !== questions.length}
         >
           {submitting ? (
