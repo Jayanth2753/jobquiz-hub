@@ -24,6 +24,7 @@ export const useQuizQuestions = (quizId: string) => {
   const fetchQuizQuestions = async () => {
     try {
       setLoading(true);
+      setRetryInProgress(true);
       console.log(`Fetching questions for quiz ID: ${quizId}`);
 
       const { data, error } = await supabase
@@ -53,6 +54,7 @@ export const useQuizQuestions = (quizId: string) => {
       });
     } finally {
       setLoading(false);
+      setRetryInProgress(false);
     }
   };
 

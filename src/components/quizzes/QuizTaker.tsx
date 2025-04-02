@@ -50,7 +50,8 @@ const QuizTaker: React.FC<QuizTakerProps> = ({
       <QuizEmpty 
         retryCount={retryCount} 
         maxRetries={maxRetries} 
-        onRefresh={fetchQuizQuestions} 
+        onRefresh={fetchQuizQuestions}
+        isRefreshing={retryInProgress}
       />
     );
   }

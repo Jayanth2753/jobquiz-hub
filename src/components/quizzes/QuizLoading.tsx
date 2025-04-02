@@ -12,6 +12,9 @@ const QuizLoading: React.FC<QuizLoadingProps> = ({ isRefreshing = false }) => {
       <p className="text-gray-500">
         {isRefreshing ? "Refreshing questions..." : "Loading quiz questions..."}
       </p>
+      <p className="text-sm text-gray-400 mt-2">
+        This may take a moment. The system is checking for your questions.
+      </p>
     </div>
   );
 };
