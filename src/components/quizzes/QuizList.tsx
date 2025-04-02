@@ -79,7 +79,8 @@ const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
         // Transform the data to match our Quiz interface
         const transformedData = data?.map(quiz => ({
           ...quiz,
-          quiz_questions_count: quiz.quiz_questions ? quiz.quiz_questions.count : 0
+          // Fix: Access the first item of the array if it exists, then get the count
+          quiz_questions_count: quiz.quiz_questions && quiz.quiz_questions[0] ? quiz.quiz_questions[0].count : 0
         })) || [];
         
         setQuizzes(transformedData);
@@ -121,7 +122,8 @@ const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
         // Transform the data to match our Quiz interface
         const transformedData = data?.map(quiz => ({
           ...quiz,
-          quiz_questions_count: quiz.quiz_questions ? quiz.quiz_questions.count : 0
+          // Fix: Access the first item of the array if it exists, then get the count
+          quiz_questions_count: quiz.quiz_questions && quiz.quiz_questions[0] ? quiz.quiz_questions[0].count : 0
         })) || [];
         
         setQuizzes(transformedData);
