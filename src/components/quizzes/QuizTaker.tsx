@@ -24,11 +24,30 @@ const QuizTaker: React.FC<QuizTakerProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [questions, setQuestions] = useState<any[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [retryCount, setRetryCount] = useState(0);
+  const [retryInProgress, setRetryInProgress] = useState(false);
+  const maxRetries = 5;
 
   useEffect(() => {
     fetchQuizQuestions();
     updateQuizStatus();
   }, [quizId]);
+
+  // Auto-retry if no questions are found
+  useEffect(() => {
+    if (questions.length === 0 && retryCount < maxRetries && !loading && !retryInProgress) {
+      const timer = setTimeout(() => {
+        console.log(`Auto-retrying to fetch questions (attempt ${retryCount + 1}/${maxRetries})...`);
+        setRetryInProgress(true);
+        fetchQuizQuestions().finally(() => {
+          setRetryInProgress(false);
+          setRetryCount(prev => prev + 1);
+        });
+      }, 5000); // 5 second delay between retries
+      
+      return () => clearTimeout(timer);
+    }
+  }, [questions, loading, retryCount, retryInProgress]);
 
   const fetchQuizQuestions = async () => {
     try {
@@ -158,25 +177,33 @@ const QuizTaker: React.FC<QuizTakerProps> = ({
     }
   };
 
-  if (loading) {
+  if (loading || retryInProgress) {
     return (
-      <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="flex flex-col items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-3"></div>
+        <p className="text-gray-500">
+          {loading ? "Loading quiz questions..." : "Refreshing questions..."}
+        </p>
       </div>
     );
   }
 
   if (questions.length === 0) {
     return (
-      <div className="text-center py-8">
+      <div className="text-center py-8 space-y-4">
         <p className="text-lg text-gray-500">
-          No questions found for this quiz. This might be because the quiz questions are still being generated. Please wait a moment and try again.
+          No questions found for this quiz. The system is still generating your quiz questions.
+        </p>
+        <p className="text-sm text-gray-400">
+          {retryCount < maxRetries 
+            ? `We've tried ${retryCount} times. Auto-retrying in 5 seconds...` 
+            : "We've tried several times but couldn't find your questions."}
         </p>
         <Button 
           onClick={fetchQuizQuestions} 
           className="mt-4"
         >
-          Refresh Questions
+          Refresh Manually
         </Button>
       </div>
     );
