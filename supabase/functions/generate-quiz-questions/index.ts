@@ -1,4 +1,3 @@
-
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.21.0';
 import { corsHeaders } from '../_shared/cors.ts';
@@ -101,14 +100,13 @@ serve(async (req) => {
     
     if (!finalQuizId && user) {
       try {
-        // For job applications or if no quiz ID was provided
+        // Create a new quiz with the correct structure
         const { data: quiz, error } = await supabaseClient
           .from('quizzes')
           .insert({
-            application_id: applicationId, // This can be null for practice quizzes
-            employee_id: user.id, // Set the employee_id for practice quizzes
             status: 'pending',
-            updated_at: new Date().toISOString()
+            application_id: applicationId || null,
+            employee_id: user.id
           })
           .select()
           .single();

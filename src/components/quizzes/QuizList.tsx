@@ -67,7 +67,7 @@ const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
           .from("quizzes")
           .select(`
             *,
-            quiz_questions(count)
+            quiz_questions:quiz_questions(count)
           `)
           .is("application_id", null)
           .eq("employee_id", userProfile.id)
@@ -75,7 +75,14 @@ const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
           
         if (error) throw error;
         console.log("Practice quizzes fetched:", data);
-        setQuizzes(data || []);
+        
+        // Transform the data to match our Quiz interface
+        const transformedData = data?.map(quiz => ({
+          ...quiz,
+          quiz_questions_count: quiz.quiz_questions ? quiz.quiz_questions.count : 0
+        })) || [];
+        
+        setQuizzes(transformedData);
       } else {
         // Fetch job-related quizzes
         const { data: applications, error: appError } = await supabase
@@ -100,18 +107,24 @@ const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
           .select(`
             *,
             applications(
-              *,
               jobs(
                 id, title
               )
             ),
-            quiz_questions(count)
+            quiz_questions:quiz_questions(count)
           `)
           .in("application_id", applicationIds)
           .order("created_at", { ascending: false });
 
         if (error) throw error;
-        setQuizzes(data || []);
+        
+        // Transform the data to match our Quiz interface
+        const transformedData = data?.map(quiz => ({
+          ...quiz,
+          quiz_questions_count: quiz.quiz_questions ? quiz.quiz_questions.count : 0
+        })) || [];
+        
+        setQuizzes(transformedData);
       }
     } catch (error: any) {
       console.error("Error fetching quizzes:", error);

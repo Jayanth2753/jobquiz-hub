@@ -110,7 +110,8 @@ const SkillBasedQuizCreator: React.FC<SkillBasedQuizCreatorProps> = ({ onComplet
         .from("quizzes")
         .insert({
           status: "pending",
-          employee_id: userProfile.id // Use employee_id for practice quizzes
+          employee_id: userProfile.id,
+          application_id: null
         })
         .select()
         .single();
