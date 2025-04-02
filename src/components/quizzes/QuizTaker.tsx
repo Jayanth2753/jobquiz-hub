@@ -33,6 +33,8 @@ const QuizTaker: React.FC<QuizTakerProps> = ({
   const fetchQuizQuestions = async () => {
     try {
       setLoading(true);
+      console.log(`Fetching questions for quiz ID: ${quizId}`);
+
       const { data, error } = await supabase
         .from("quiz_questions")
         .select("*, skills(name)")
@@ -42,7 +44,9 @@ const QuizTaker: React.FC<QuizTakerProps> = ({
         throw error;
       }
 
-      // Parse options from JSON string
+      console.log(`Found ${data?.length || 0} questions for quiz ID: ${quizId}`, data);
+
+      // Parse options from JSON string if needed
       const parsedQuestions = (data || []).map(q => ({
         ...q,
         options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options
@@ -50,6 +54,7 @@ const QuizTaker: React.FC<QuizTakerProps> = ({
 
       setQuestions(parsedQuestions);
     } catch (error: any) {
+      console.error("Error fetching quiz questions:", error);
       toast({
         title: "Error fetching quiz questions",
         description: error.message,
@@ -142,6 +147,7 @@ const QuizTaker: React.FC<QuizTakerProps> = ({
 
       onComplete();
     } catch (error: any) {
+      console.error("Error submitting quiz:", error);
       toast({
         title: "Error submitting quiz",
         description: error.message,
@@ -164,8 +170,14 @@ const QuizTaker: React.FC<QuizTakerProps> = ({
     return (
       <div className="text-center py-8">
         <p className="text-lg text-gray-500">
-          No questions found for this quiz. Please contact support.
+          No questions found for this quiz. This might be because the quiz questions are still being generated. Please wait a moment and try again.
         </p>
+        <Button 
+          onClick={fetchQuizQuestions} 
+          className="mt-4"
+        >
+          Refresh Questions
+        </Button>
       </div>
     );
   }
