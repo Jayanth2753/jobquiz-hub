@@ -463,9 +463,6 @@ export const QuizManager = ({
     }
   }, [userProfile, showPracticeQuizzes]);
 
-  // Rest of the component logic would go here
-  // ...
-
   return (
     <div>
       {/* This component would render the list of quizzes and manage quiz taking */}

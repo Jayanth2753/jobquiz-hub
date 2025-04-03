@@ -3,7 +3,7 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { QuizQuestion as QuestionType } from "@/hooks/useQuizQuestions";
+import { QuizQuestion as QuestionType } from "./Quiz";
 
 interface QuizQuestionProps {
   question: QuestionType;
