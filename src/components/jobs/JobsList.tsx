@@ -142,10 +142,27 @@ const JobsList: React.FC<JobsListProps> = ({
       
       if (skillIdsToUse.length === 0) {
         // No skills at all, create a general question
+        // First get a default skill ID to use (we need to have a skill_id for the insert)
+        const { data: defaultSkills, error: defaultSkillError } = await supabase
+          .from("skills")
+          .select("id")
+          .limit(1);
+          
+        if (defaultSkillError) throw defaultSkillError;
+        
+        // Use the first skill ID available or exit if none
+        if (!defaultSkills || defaultSkills.length === 0) {
+          console.error("No skills found in the database, cannot create quiz questions");
+          return;
+        }
+        
+        const defaultSkillId = defaultSkills[0].id;
+        
         const { error } = await supabase
           .from("quiz_questions")
           .insert({
             quiz_id: quizId,
+            skill_id: defaultSkillId, // Use the default skill ID
             question: "Why do you think you're a good fit for this role?",
             options: JSON.stringify([
               "I have relevant experience",
