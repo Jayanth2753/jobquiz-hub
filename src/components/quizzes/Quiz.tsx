@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -139,6 +140,7 @@ export const QuizTaker = ({
     
     try {
       setLoading(true);
+      console.log("Fetching common skills for application ID:", applicationId);
       
       // Get the job ID from the application
       const { data: application, error: appError } = await supabase
@@ -153,10 +155,14 @@ export const QuizTaker = ({
       }
       
       const jobId = application.job_id;
+      console.log("Found job ID:", jobId);
       
       // Get the user's ID
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
+      if (!user) {
+        console.error("No authenticated user found");
+        return [];
+      }
       
       // Get skills required for the job
       const { data: jobSkills, error: jobSkillsError } = await supabase
@@ -175,6 +181,7 @@ export const QuizTaker = ({
         console.error("Error fetching job skills:", jobSkillsError);
         return [];
       }
+      console.log("Job skills:", jobSkills);
       
       // Get user's skills
       const { data: userSkills, error: userSkillsError } = await supabase
@@ -193,6 +200,7 @@ export const QuizTaker = ({
         console.error("Error fetching user skills:", userSkillsError);
         return [];
       }
+      console.log("User skills:", userSkills);
       
       // Find common skills
       const common = jobSkills.filter(jobSkill => 
@@ -210,15 +218,33 @@ export const QuizTaker = ({
       console.log("Common skills:", commonSkillsData);
       setCommonSkills(commonSkillsData);
       
+      // Always show proficiency selector if there are common skills
       if (commonSkillsData.length > 0) {
+        console.log("Showing proficiency selector");
         setShowProficiencySelector(true);
       } else {
-        await fetchQuizQuestions();
+        console.log("No common skills found, using job skills instead");
+        // If no common skills, use all job skills with default proficiency
+        const jobSkillsData = jobSkills.map(skill => ({
+          id: skill.skill_id,
+          name: skill.skills.name,
+          proficiency: 3, // Default proficiency
+          importance: skill.importance
+        }));
+        
+        if (jobSkillsData.length > 0) {
+          setCommonSkills(jobSkillsData);
+          setShowProficiencySelector(true);
+        } else {
+          console.log("No job skills found either, fetching existing questions");
+          await fetchQuizQuestions();
+        }
       }
       
       return commonSkillsData;
     } catch (error) {
       console.error("Error getting common skills:", error);
+      await fetchQuizQuestions(); // Fallback to fetching existing questions
       return [];
     } finally {
       setLoading(false);
@@ -230,11 +256,19 @@ export const QuizTaker = ({
       setQuizGenerationInProgress(true);
       console.log("Generating quiz with skills:", skillsWithProficiency);
       
+      // First, delete any existing questions for this quiz
+      await supabase
+        .from("quiz_questions")
+        .delete()
+        .eq("quiz_id", quizId);
+      
+      // Then generate new questions
       const { data, error } = await supabase.functions.invoke("generate-quiz-questions", {
         body: { 
           skills: skillsWithProficiency,
           questionsPerSkill: 10,
-          quizId: quizId
+          quizId: quizId,
+          applicationId: applicationId
         }
       });
 
@@ -246,8 +280,10 @@ export const QuizTaker = ({
       console.log("Quiz generation response:", data);
       
       if (data && data.quizId) {
-        // Quiz questions have been generated and saved to the database
-        await fetchQuizQuestions();
+        // Wait a moment for the database to update
+        setTimeout(async () => {
+          await fetchQuizQuestions();
+        }, 3000);
       }
     } catch (error) {
       console.error("Error generating quiz with OpenAI:", error);
@@ -287,6 +323,11 @@ export const QuizTaker = ({
       }));
 
       setQuestions(parsedQuestions);
+      
+      // If no questions found and we haven't shown the proficiency selector yet
+      if (parsedQuestions.length === 0 && !showProficiencySelector && commonSkills.length > 0) {
+        setShowProficiencySelector(true);
+      }
     } catch (error: any) {
       console.error("Error fetching quiz questions:", error);
       toast({
@@ -374,12 +415,13 @@ export const QuizTaker = ({
   };
 
   const handleProficiencyComplete = (skillsWithProficiency: any[]) => {
+    console.log("Proficiency selection complete. Selected proficiencies:", skillsWithProficiency);
     setShowProficiencySelector(false);
     generateQuizWithOpenAI(skillsWithProficiency);
   };
 
   useEffect(() => {
-    if (questions.length === 0 && retryCount < maxRetries && !loading && !retryInProgress && !quizGenerationInProgress) {
+    if (questions.length === 0 && retryCount < maxRetries && !loading && !retryInProgress && !quizGenerationInProgress && !showProficiencySelector) {
       const timer = setTimeout(() => {
         console.log(`Auto-retrying to fetch questions (attempt ${retryCount + 1}/${maxRetries})...`);
         setRetryInProgress(true);
@@ -391,7 +433,7 @@ export const QuizTaker = ({
       
       return () => clearTimeout(timer);
     }
-  }, [questions, loading, retryCount, retryInProgress, quizGenerationInProgress]);
+  }, [questions, loading, retryCount, retryInProgress, quizGenerationInProgress, showProficiencySelector]);
 
   useEffect(() => {
     updateQuizStatus();

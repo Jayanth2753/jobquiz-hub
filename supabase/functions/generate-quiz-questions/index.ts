@@ -149,6 +149,8 @@ serve(async (req) => {
 
         if (questionsError) {
           console.error("Error inserting questions:", questionsError);
+        } else {
+          console.log(`Successfully inserted ${questionsToInsert.length} questions for quiz ${finalQuizId}`);
         }
       }
     }
