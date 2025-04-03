@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,8 +7,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { Loader2, RefreshCw } from "lucide-react";
+import ProficiencySelector from "./ProficiencySelector";
 
-// Consolidated quiz types
 export interface QuizQuestion {
   id: string;
   quiz_id: string;
@@ -36,7 +35,6 @@ export interface Quiz {
   } | null;
 }
 
-// Loading state component
 const QuizLoading = ({ isRefreshing = false }: { isRefreshing?: boolean }) => {
   return (
     <div className="flex flex-col items-center justify-center py-8">
@@ -51,7 +49,6 @@ const QuizLoading = ({ isRefreshing = false }: { isRefreshing?: boolean }) => {
   );
 };
 
-// Empty state component
 const QuizEmpty = ({ 
   retryCount, 
   maxRetries, 
@@ -99,7 +96,6 @@ const QuizEmpty = ({
   );
 };
 
-// Main quiz taker component
 export const QuizTaker = ({ 
   quizId, 
   applicationId, 
@@ -115,6 +111,9 @@ export const QuizTaker = ({
   const [retryInProgress, setRetryInProgress] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [commonSkills, setCommonSkills] = useState<any[]>([]);
+  const [showProficiencySelector, setShowProficiencySelector] = useState(false);
+  const [quizGenerationInProgress, setQuizGenerationInProgress] = useState(false);
   const maxRetries = 5;
 
   const handleAnswerChange = (questionId: string, answer: string) => {
@@ -132,6 +131,135 @@ export const QuizTaker = ({
         .eq("id", quizId);
     } catch (error) {
       console.error("Error updating quiz status:", error);
+    }
+  };
+
+  const getCommonSkills = async () => {
+    if (!applicationId) return [];
+    
+    try {
+      setLoading(true);
+      
+      // Get the job ID from the application
+      const { data: application, error: appError } = await supabase
+        .from("applications")
+        .select("job_id")
+        .eq("id", applicationId)
+        .single();
+        
+      if (appError || !application) {
+        console.error("Error fetching application:", appError);
+        return [];
+      }
+      
+      const jobId = application.job_id;
+      
+      // Get the user's ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      
+      // Get skills required for the job
+      const { data: jobSkills, error: jobSkillsError } = await supabase
+        .from("job_skills")
+        .select(`
+          skill_id,
+          importance,
+          skills (
+            id,
+            name
+          )
+        `)
+        .eq("job_id", jobId);
+        
+      if (jobSkillsError) {
+        console.error("Error fetching job skills:", jobSkillsError);
+        return [];
+      }
+      
+      // Get user's skills
+      const { data: userSkills, error: userSkillsError } = await supabase
+        .from("employee_skills")
+        .select(`
+          skill_id,
+          proficiency,
+          skills (
+            id,
+            name
+          )
+        `)
+        .eq("employee_id", user.id);
+        
+      if (userSkillsError) {
+        console.error("Error fetching user skills:", userSkillsError);
+        return [];
+      }
+      
+      // Find common skills
+      const common = jobSkills.filter(jobSkill => 
+        userSkills.some(userSkill => userSkill.skill_id === jobSkill.skill_id)
+      );
+      
+      // Map to the format we need
+      const commonSkillsData = common.map(skill => ({
+        id: skill.skill_id,
+        name: skill.skills.name,
+        proficiency: userSkills.find(us => us.skill_id === skill.skill_id)?.proficiency || 3,
+        importance: skill.importance
+      }));
+      
+      console.log("Common skills:", commonSkillsData);
+      setCommonSkills(commonSkillsData);
+      
+      if (commonSkillsData.length > 0) {
+        setShowProficiencySelector(true);
+      } else {
+        await fetchQuizQuestions();
+      }
+      
+      return commonSkillsData;
+    } catch (error) {
+      console.error("Error getting common skills:", error);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateQuizWithOpenAI = async (skillsWithProficiency: any[]) => {
+    try {
+      setQuizGenerationInProgress(true);
+      console.log("Generating quiz with skills:", skillsWithProficiency);
+      
+      const { data, error } = await supabase.functions.invoke("generate-quiz-questions", {
+        body: { 
+          skills: skillsWithProficiency,
+          questionsPerSkill: 10,
+          quizId: quizId
+        }
+      });
+
+      if (error) {
+        console.error("Error invoking generate-quiz-questions function:", error);
+        throw error;
+      }
+
+      console.log("Quiz generation response:", data);
+      
+      if (data && data.quizId) {
+        // Quiz questions have been generated and saved to the database
+        await fetchQuizQuestions();
+      }
+    } catch (error) {
+      console.error("Error generating quiz with OpenAI:", error);
+      toast({
+        title: "Error generating quiz",
+        description: "Failed to generate quiz questions. Please try again.",
+        variant: "destructive",
+      });
+      // Fallback to fetching any questions that might have been created
+      await fetchQuizQuestions();
+    } finally {
+      setQuizGenerationInProgress(false);
     }
   };
 
@@ -245,9 +373,13 @@ export const QuizTaker = ({
     }
   };
 
-  // Auto-retry if no questions are found
+  const handleProficiencyComplete = (skillsWithProficiency: any[]) => {
+    setShowProficiencySelector(false);
+    generateQuizWithOpenAI(skillsWithProficiency);
+  };
+
   useEffect(() => {
-    if (questions.length === 0 && retryCount < maxRetries && !loading && !retryInProgress) {
+    if (questions.length === 0 && retryCount < maxRetries && !loading && !retryInProgress && !quizGenerationInProgress) {
       const timer = setTimeout(() => {
         console.log(`Auto-retrying to fetch questions (attempt ${retryCount + 1}/${maxRetries})...`);
         setRetryInProgress(true);
@@ -259,18 +391,23 @@ export const QuizTaker = ({
       
       return () => clearTimeout(timer);
     }
-  }, [questions, loading, retryCount, retryInProgress]);
-
-  useEffect(() => {
-    fetchQuizQuestions();
-  }, [quizId]);
+  }, [questions, loading, retryCount, retryInProgress, quizGenerationInProgress]);
 
   useEffect(() => {
     updateQuizStatus();
-  }, [quizId]);
+    getCommonSkills();
+  }, [quizId, applicationId]);
 
-  if (loading || retryInProgress) {
-    return <QuizLoading isRefreshing={retryInProgress} />;
+  if (showProficiencySelector) {
+    return <ProficiencySelector skills={commonSkills} onComplete={handleProficiencyComplete} />;
+  }
+
+  if (loading || retryInProgress || quizGenerationInProgress) {
+    return (
+      <QuizLoading 
+        isRefreshing={retryInProgress || quizGenerationInProgress} 
+      />
+    );
   }
 
   if (questions.length === 0) {
@@ -338,7 +475,6 @@ export const QuizTaker = ({
   );
 };
 
-// Combined quiz list component with quiz management
 export const QuizManager = ({ 
   showPracticeQuizzes = false 
 }: { 
@@ -414,7 +550,6 @@ export const QuizManager = ({
     }
   }, [userProfile]);
 
-  // Render loading state
   if (loading) {
     return (
       <div className="flex justify-center py-8">
@@ -423,7 +558,6 @@ export const QuizManager = ({
     );
   }
 
-  // Render empty state
   if (quizzes.length === 0) {
     return (
       <div className="text-center py-8 space-y-4">
@@ -434,7 +568,6 @@ export const QuizManager = ({
     );
   }
 
-  // Render list of quizzes
   return (
     <div className="space-y-4">
       {quizzes.map((quiz) => (
@@ -480,7 +613,6 @@ export const QuizManager = ({
         </Card>
       ))}
 
-      {/* Quiz taking dialog */}
       {dialogOpen && selectedQuiz && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
