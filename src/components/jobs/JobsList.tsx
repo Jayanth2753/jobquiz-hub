@@ -100,7 +100,8 @@ const JobsList: React.FC<JobsListProps> = ({
       const { data: quiz, error: quizError } = await supabase
         .from("quizzes")
         .insert({
-          application_id: applicationId
+          application_id: applicationId,
+          employee_id: userProfile.id
         })
         .select();
       
@@ -136,13 +137,15 @@ const JobsList: React.FC<JobsListProps> = ({
       const empSkillIds = employeeSkills.map(item => item.skill_id);
       const matchingSkillIds = jobSkillIds.filter(id => empSkillIds.includes(id));
       
-      if (matchingSkillIds.length === 0) {
-        // No matching skills, create a general question
+      // If there are no matching skills, use job skills
+      const skillIdsToUse = matchingSkillIds.length > 0 ? matchingSkillIds : jobSkillIds;
+      
+      if (skillIdsToUse.length === 0) {
+        // No skills at all, create a general question
         const { error } = await supabase
           .from("quiz_questions")
           .insert({
             quiz_id: quizId,
-            skill_id: jobSkillIds[0], // Use the first job skill
             question: "Why do you think you're a good fit for this role?",
             options: JSON.stringify([
               "I have relevant experience",
@@ -157,11 +160,11 @@ const JobsList: React.FC<JobsListProps> = ({
         return;
       }
       
-      // Get details of matching skills
+      // Get details of the skills to use
       const { data: skillsDetails, error: skillsError } = await supabase
         .from("skills")
         .select("*")
-        .in("id", matchingSkillIds);
+        .in("id", skillIdsToUse);
       
       if (skillsError) throw skillsError;
       

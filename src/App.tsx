@@ -13,7 +13,6 @@ import ManageSkills from "@/pages/ManageSkills";
 import PostJob from "@/pages/PostJob";
 import NotFound from "@/pages/NotFound";
 import MainLayout from "@/components/layout/MainLayout";
-import GenerateQuiz from "@/pages/GenerateQuiz";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,16 +59,6 @@ const App = () => (
                 <ProtectedRoute allowedRoles={["employer"]}>
                   <MainLayout>
                     <PostJob />
-                  </MainLayout>
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/generate-quiz" 
-              element={
-                <ProtectedRoute allowedRoles={["employee"]}>
-                  <MainLayout>
-                    <GenerateQuiz />
                   </MainLayout>
                 </ProtectedRoute>
               } 

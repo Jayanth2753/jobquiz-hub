@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowRight, Briefcase, Check, Brain } from "lucide-react";
+import { ArrowRight, Briefcase, Check } from "lucide-react";
 import JobsList from "@/components/jobs/JobsList";
 import ApplicationsList from "@/components/applications/ApplicationsList";
 import QuizList from "@/components/quizzes/QuizList";
@@ -53,7 +53,7 @@ const EmployeeDashboard: React.FC = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center">
@@ -97,36 +97,13 @@ const EmployeeDashboard: React.FC = () => {
             </Button>
           </CardFooter>
         </Card>
-
-        <Card className="bg-primary/5 border-primary/30">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center text-primary">
-              <Brain className="mr-2 h-5 w-5" />
-              Practice Quizzes
-            </CardTitle>
-            <CardDescription>Test your skills</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">
-              Take quizzes based on your skills and proficiency levels to practice and improve.
-            </p>
-          </CardContent>
-          <CardFooter>
-            <Button asChild className="w-full justify-between">
-              <Link to="/dashboard?tab=practice-quizzes">
-                Take Quiz <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          </CardFooter>
-        </Card>
       </div>
 
       <Tabs defaultValue={defaultTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="applications">My Applications</TabsTrigger>
           <TabsTrigger value="jobs">Available Jobs</TabsTrigger>
           <TabsTrigger value="quizzes">Job Assessments</TabsTrigger>
-          <TabsTrigger value="practice-quizzes">Practice Quizzes</TabsTrigger>
         </TabsList>
         <TabsContent value="applications">
           <Card>
@@ -163,17 +140,6 @@ const EmployeeDashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <QuizList showPracticeQuizzes={false} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="practice-quizzes">
-          <Card>
-            <CardHeader>
-              <CardTitle>Practice Quizzes</CardTitle>
-              <CardDescription>Take quizzes based on your skills</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <QuizList showPracticeQuizzes={true} />
             </CardContent>
           </Card>
         </TabsContent>

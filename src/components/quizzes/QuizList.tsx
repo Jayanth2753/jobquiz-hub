@@ -7,7 +7,8 @@ interface QuizListProps {
 }
 
 const QuizList: React.FC<QuizListProps> = ({ showPracticeQuizzes = false }) => {
-  return <QuizManager showPracticeQuizzes={showPracticeQuizzes} />;
+  // We're removing practice quizzes functionality, so we'll always pass false
+  return <QuizManager showPracticeQuizzes={false} />;
 };
 
 export default QuizList;

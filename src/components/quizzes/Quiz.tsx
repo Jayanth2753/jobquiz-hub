@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,48 +35,6 @@ export interface Quiz {
     } | null;
   } | null;
 }
-
-// Component for rendering quiz questions
-const QuizQuestion = ({ 
-  question, 
-  index, 
-  answer, 
-  onAnswerChange 
-}: { 
-  question: QuizQuestion; 
-  index: number; 
-  answer: string; 
-  onAnswerChange: (questionId: string, answer: string) => void; 
-}) => {
-  return (
-    <Card key={question.id}>
-      <CardContent className="pt-6">
-        <div className="space-y-4">
-          <div>
-            <h3 className="font-medium">
-              {index + 1}. {question.question}
-            </h3>
-            <p className="text-sm text-gray-500">
-              Skill: {question.skills?.name || "Unknown"}
-            </p>
-          </div>
-
-          <RadioGroup
-            value={answer || ""}
-            onValueChange={(value) => onAnswerChange(question.id, value)}
-          >
-            {question.options.map((option: string) => (
-              <div key={option} className="flex items-center space-x-2">
-                <RadioGroupItem value={option} id={`${question.id}-${option}`} />
-                <Label htmlFor={`${question.id}-${option}`}>{option}</Label>
-              </div>
-            ))}
-          </RadioGroup>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
 
 // Loading state component
 const QuizLoading = ({ isRefreshing = false }: { isRefreshing?: boolean }) => {
@@ -270,9 +229,7 @@ export const QuizTaker = ({
 
       toast({
         title: "Quiz Completed",
-        description: applicationId
-          ? `You scored ${score}%. Your application has been updated.`
-          : `You scored ${score}% on your practice quiz.`,
+        description: `You scored ${score}%. Your application has been updated.`,
       });
 
       onComplete();
@@ -334,13 +291,32 @@ export const QuizTaker = ({
       </p>
 
       {questions.map((question, index) => (
-        <QuizQuestion
-          key={question.id}
-          question={question}
-          index={index}
-          answer={answers[question.id] || ""}
-          onAnswerChange={handleAnswerChange}
-        />
+        <Card key={question.id}>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-medium">
+                  {index + 1}. {question.question}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Skill: {question.skills?.name || "Unknown"}
+                </p>
+              </div>
+
+              <RadioGroup
+                value={answers[question.id] || ""}
+                onValueChange={(value) => handleAnswerChange(question.id, value)}
+              >
+                {question.options.map((option: string) => (
+                  <div key={option} className="flex items-center space-x-2">
+                    <RadioGroupItem value={option} id={`${question.id}-${option}`} />
+                    <Label htmlFor={`${question.id}-${option}`}>{option}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+          </CardContent>
+        </Card>
       ))}
 
       <div className="flex justify-end">
@@ -373,7 +349,6 @@ export const QuizManager = ({
   const [loading, setLoading] = useState(true);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [createQuizDialogOpen, setCreateQuizDialogOpen] = useState(false);
 
   const fetchQuizzes = async () => {
     if (!userProfile?.id) return;
@@ -381,70 +356,46 @@ export const QuizManager = ({
     try {
       setLoading(true);
       
-      if (showPracticeQuizzes) {
-        // Fetch practice quizzes (those created without an application_id)
-        const { data, error } = await supabase
-          .from("quizzes")
-          .select(`
-            *,
-            quiz_questions:quiz_questions(count)
-          `)
-          .is("application_id", null)
-          .eq("employee_id", userProfile.id)
-          .order("created_at", { ascending: false });
-          
-        if (error) throw error;
-        
-        // Transform the data to match our Quiz interface
-        const transformedData = data?.map(quiz => ({
-          ...quiz,
-          // Fix: Access the first item of the array if it exists, then get the count
-          quiz_questions_count: quiz.quiz_questions && quiz.quiz_questions[0] ? quiz.quiz_questions[0].count : 0
-        })) || [];
-        
-        setQuizzes(transformedData);
-      } else {
-        // Fetch job-related quizzes
-        const { data: applications, error: appError } = await supabase
-          .from("applications")
-          .select("id")
-          .eq("employee_id", userProfile.id);
-        
-        if (appError) throw appError;
-        
-        if (!applications || applications.length === 0) {
-          setQuizzes([]);
-          return;
-        }
-        
-        // Get application IDs
-        const applicationIds = applications.map(app => app.id);
-        
-        // Then get quizzes linked to those applications
-        const { data, error } = await supabase
-          .from("quizzes")
-          .select(`
-            *,
-            applications(
-              jobs(
-                id, title
-              )
-            ),
-            quiz_questions:quiz_questions(count)
-          `)
-          .in("application_id", applicationIds)
-          .order("created_at", { ascending: false });
-
-        if (error) throw error;
-        
-        // Transform the data to match our Quiz interface
-        const transformedData = data?.map(quiz => ({
-          ...quiz,
-          quiz_questions_count: quiz.quiz_questions && quiz.quiz_questions[0] ? quiz.quiz_questions[0].count : 0
-        })) || [];
-        
-        setQuizzes(transformedData);
+      // Fetch job-related quizzes only (no practice quizzes)
+      const { data: applications, error: appError } = await supabase
+        .from("applications")
+        .select("id")
+        .eq("employee_id", userProfile.id);
+      
+      if (appError) throw appError;
+      
+      if (!applications || applications.length === 0) {
+        setQuizzes([]);
+        return;
       }
+      
+      // Get application IDs
+      const applicationIds = applications.map(app => app.id);
+      
+      // Then get quizzes linked to those applications
+      const { data, error } = await supabase
+        .from("quizzes")
+        .select(`
+          *,
+          applications(
+            jobs(
+              id, title
+            )
+          ),
+          quiz_questions:quiz_questions(count)
+        `)
+        .in("application_id", applicationIds)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      
+      // Transform the data to match our Quiz interface
+      const transformedData = data?.map(quiz => ({
+        ...quiz,
+        quiz_questions_count: quiz.quiz_questions && quiz.quiz_questions[0] ? quiz.quiz_questions[0].count : 0
+      })) || [];
+      
+      setQuizzes(transformedData);
     } catch (error: any) {
       console.error("Error fetching quizzes:", error);
       toast({
@@ -461,14 +412,108 @@ export const QuizManager = ({
     if (userProfile?.id) {
       fetchQuizzes();
     }
-  }, [userProfile, showPracticeQuizzes]);
+  }, [userProfile]);
 
+  // Render loading state
+  if (loading) {
+    return (
+      <div className="flex justify-center py-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Render empty state
+  if (quizzes.length === 0) {
+    return (
+      <div className="text-center py-8 space-y-4">
+        <p className="text-lg text-gray-500">
+          You don't have any job assessments yet. Apply for a job to get a skills assessment.
+        </p>
+      </div>
+    );
+  }
+
+  // Render list of quizzes
   return (
-    <div>
-      {/* This component would render the list of quizzes and manage quiz taking */}
-      {/* The implementation would be similar to the existing QuizList component */}
+    <div className="space-y-4">
+      {quizzes.map((quiz) => (
+        <Card key={quiz.id} className="overflow-hidden">
+          <div className="p-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-medium">
+                  {quiz.applications?.jobs?.title || "Untitled Job"}
+                </h3>
+                <div className="flex items-center mt-1 space-x-3">
+                  <span className="text-sm text-gray-500">
+                    Created: {new Date(quiz.created_at).toLocaleDateString()}
+                  </span>
+                  <div className="flex items-center">
+                    <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                      quiz.status === 'completed' ? 'bg-green-500' : 
+                      quiz.status === 'in_progress' ? 'bg-amber-500' : 'bg-gray-500'
+                    }`}></span>
+                    <span className="text-sm capitalize">{quiz.status.replace('_', ' ')}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                {quiz.status === 'completed' && quiz.score !== null ? (
+                  <div className="text-lg font-semibold">
+                    Score: {quiz.score}%
+                  </div>
+                ) : (
+                  <Button 
+                    onClick={() => {
+                      setSelectedQuiz(quiz);
+                      setDialogOpen(true);
+                    }}
+                    disabled={quiz.quiz_questions_count === 0}
+                  >
+                    {quiz.status === 'pending' ? 'Start Quiz' : 'Continue Quiz'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+      ))}
+
+      {/* Quiz taking dialog */}
+      {dialogOpen && selectedQuiz && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">
+                  {selectedQuiz.applications?.jobs?.title || "Skills Assessment"}
+                </h2>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => {
+                    setDialogOpen(false);
+                    setSelectedQuiz(null);
+                    fetchQuizzes();
+                  }}
+                >
+                  Close
+                </Button>
+              </div>
+              
+              <QuizTaker 
+                quizId={selectedQuiz.id}
+                applicationId={selectedQuiz.application_id}
+                onComplete={() => {
+                  setDialogOpen(false);
+                  setSelectedQuiz(null);
+                  fetchQuizzes();
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-
-export default { QuizTaker, QuizManager };
