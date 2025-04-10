@@ -199,43 +199,50 @@ async function generateQuestionsForSkill(
   explanation?: string;
 }>> {
   try {
-    // Modify the prompt to explicitly request diverse and unique questions
+    // Enhanced prompt with explicit instructions for diversity and uniqueness
     const prompt = `
-Generate ${questionsCount} multiple-choice questions about ${skill.name} at proficiency level ${skill.proficiency} (1=beginner, 5=expert).
-IMPORTANT: Each question MUST be unique and substantially different from the others.
-Each question should have 4 distinct options with one correct answer.
+Generate exactly ${questionsCount} unique multiple-choice questions about "${skill.name}" at proficiency level ${skill.proficiency} (1=beginner, 5=expert).
 
-Return the response as a JSON array with this structure:
+CRITICAL REQUIREMENTS:
+1. Each question MUST be entirely unique in both content and structure
+2. Each question MUST address a different aspect or concept of ${skill.name}
+3. Questions MUST vary in format, complexity, and focus
+4. Each question MUST have 4 distinctly different answer options (labeled A, B, C, D)
+5. All options MUST be concrete, realistic choices - not generic or placeholder text
+6. Only ONE option can be correct for each question
+7. The correct answer MUST match EXACTLY with one of the provided options
+
+Format as a JSON array with this structure:
 [{
-  "question": "Question text",
+  "question": "Specific, clear question text",
   "options": ["Option A", "Option B", "Option C", "Option D"],
-  "correct_answer": "The correct option (exact match to one of the options)",
-  "explanation": "Brief explanation of why this is the correct answer"
+  "correct_answer": "The exact text of the correct option",
+  "explanation": "Brief explanation of why this answer is correct"
 }]
 
-Make sure the difficulty matches the proficiency level:
-- Level 1: Basic knowledge and fundamental concepts
-- Level 2: Intermediate understanding with some practical experience
-- Level 3: Good working knowledge and practical skills
-- Level 4: Advanced concepts and problem-solving skills
-- Level 5: Expert-level understanding and deep technical knowledge
+Difficulty guidelines based on proficiency level:
+- Level 1: Basic knowledge, fundamental concepts, terminology
+- Level 2: Elementary applications, simple problem-solving
+- Level 3: Intermediate concepts, practical applications
+- Level 4: Advanced concepts, complex problem-solving
+- Level 5: Expert-level understanding, edge cases, optimization
 
-The questions should cover different aspects of the skill.
-Make the questions challenging but fair for the given proficiency level.
-Ensure all options are plausible but only one is clearly correct.
-Give SPECIFIC, REALISTIC options - not generic placeholders.
+Questions should reflect real-world scenarios and test genuine understanding, not just memorization.
 `;
 
-    console.log("Sending request to OpenAI with prompt:", prompt);
+    console.log("Sending enhanced request to OpenAI with prompt:", prompt);
     
     try {
       const response = await openAIClient.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
-          { role: "system", content: "You are a specialized education AI that creates relevant assessment questions. Generate unique, varied questions without repetition." },
+          { 
+            role: "system", 
+            content: "You are an expert education assessment creator specializing in creating diverse, unique, and challenging quiz questions. Each question you create must be substantially different from others in both content and structure." 
+          },
           { role: "user", content: prompt }
         ],
-        temperature: 0.8, // Increased for more variation
+        temperature: 0.9, // Higher temperature for more variation
         max_tokens: 4000,
         response_format: { type: "json_object" },
       });
@@ -268,12 +275,15 @@ Give SPECIFIC, REALISTIC options - not generic placeholders.
         }
         
         if (questions && Array.isArray(questions)) {
-          // Validate each question to ensure it has the required properties
+          // Strict validation of each question
           const validQuestions = questions.filter(q => 
             q.question && 
+            typeof q.question === 'string' &&
             Array.isArray(q.options) && 
             q.options.length === 4 && 
+            q.options.every(opt => typeof opt === 'string' && opt.trim() !== '') &&
             q.correct_answer && 
+            typeof q.correct_answer === 'string' &&
             q.options.includes(q.correct_answer)
           );
           
@@ -281,17 +291,25 @@ Give SPECIFIC, REALISTIC options - not generic placeholders.
             // Check for duplicate questions and ensure uniqueness
             const uniqueQuestions = [];
             const questionTexts = new Set();
+            const questionHashes = new Set();
             
             for (const question of validQuestions) {
-              if (!questionTexts.has(question.question)) {
+              // Create a hash of the question content to check for similarity
+              const questionHash = question.question.toLowerCase().replace(/\s+/g, ' ').trim();
+              
+              if (!questionTexts.has(question.question) && !questionHashes.has(questionHash)) {
                 questionTexts.add(question.question);
+                questionHashes.add(questionHash);
                 uniqueQuestions.push(question);
               }
             }
             
+            console.log(`After filtering, found ${uniqueQuestions.length} unique valid questions`);
+            
             // If we don't have enough unique questions, fill with mock questions
             if (uniqueQuestions.length < questionsCount) {
-              const mockQuestions = generateUniqueMockQuestions(
+              console.log(`Not enough unique questions, adding ${questionsCount - uniqueQuestions.length} mock questions`);
+              const mockQuestions = generateDiverseMockQuestions(
                 skill, 
                 questionsCount - uniqueQuestions.length,
                 uniqueQuestions.length
@@ -304,25 +322,25 @@ Give SPECIFIC, REALISTIC options - not generic placeholders.
         }
         
         console.error("Unexpected OpenAI response format:", content);
-        return generateUniqueMockQuestions(skill, questionsCount);
+        return generateDiverseMockQuestions(skill, questionsCount);
       } catch (parseError) {
         console.error("Error parsing OpenAI response:", parseError, "Response was:", response.choices[0]?.message.content);
-        return generateUniqueMockQuestions(skill, questionsCount);
+        return generateDiverseMockQuestions(skill, questionsCount);
       }
     } catch (apiError) {
       console.error("Error calling OpenAI API:", apiError);
       // Always fallback to mock data if the API call fails
-      return generateUniqueMockQuestions(skill, questionsCount);
+      return generateDiverseMockQuestions(skill, questionsCount);
     }
   } catch (error) {
     console.error("Uncaught error in generateQuestionsForSkill:", error);
     // Fallback to mock data for any error
-    return generateUniqueMockQuestions(skill, questionsCount);
+    return generateDiverseMockQuestions(skill, questionsCount);
   }
 }
 
-// Enhanced mock question generator that creates unique questions
-function generateUniqueMockQuestions(
+// Completely redesigned mock question generator with enhanced diversity
+function generateDiverseMockQuestions(
   skill: { id: string; name: string; proficiency: number },
   questionsCount: number,
   startingIndex: number = 0
@@ -333,45 +351,133 @@ function generateUniqueMockQuestions(
   explanation: string;
 }> {
   const difficultyPrefix = proficiencyToPrefix(skill.proficiency);
+  
+  // More diverse question templates
+  const questionTemplates = [
+    `What is the most effective approach to {topic} in ${skill.name}?`,
+    `Which {topic} is considered best practice in ${skill.name}?`,
+    `When implementing ${skill.name}, which {topic} should be prioritized?`,
+    `In the context of ${skill.name}, how should you handle {topic}?`,
+    `What is the primary advantage of using {topic} in ${skill.name}?`,
+    `Which of the following correctly describes {topic} in ${skill.name}?`,
+    `How does {topic} impact the overall effectiveness of ${skill.name}?`,
+    `What distinguishes successful implementation of {topic} in ${skill.name}?`,
+    `Which approach to {topic} is most suitable for ${skill.name} projects?`,
+    `What is a common misconception about {topic} in ${skill.name}?`,
+    `How has {topic} evolved in modern ${skill.name} practices?`,
+    `What challenge is most commonly encountered when dealing with {topic} in ${skill.name}?`
+  ];
+  
+  // Diverse topics related to any skill
   const topics = [
     "principles", "methodologies", "best practices", "common challenges", 
-    "tools", "techniques", "implementation strategies", "history", 
-    "frameworks", "certification", "roles", "metrics", "evaluation methods",
-    "testing approaches", "documentation", "case studies", "common pitfalls"
+    "tools", "techniques", "implementation strategies", "case studies",
+    "frameworks", "certification paths", "leadership roles", "performance metrics", 
+    "evaluation methods", "testing approaches", "documentation standards", 
+    "risk mitigation", "quality assurance", "optimization techniques",
+    "resource allocation", "stakeholder management", "team collaboration",
+    "knowledge transfer", "continuous improvement", "compliance requirements",
+    "ethical considerations", "technological innovations", "industry standards"
+  ];
+  
+  // Option templates for more realistic answers
+  const optionTemplates = [
+    ["{Approach} with focus on {aspect}", "{Alternative approach} emphasizing {different aspect}", "{Wrong approach} that neglects {key element}", "{Commonly confused approach} from {related field}"],
+    ["{Primary technique} combined with {supporting element}", "{Outdated technique} that was previously standard", "{Theoretical but impractical technique}", "{Technique from related discipline} adapted to this context"],
+    ["{Correct principle} as established by {authority}", "{Partially correct principle} with critical flaws", "{Common misconception} often taught incorrectly", "{Principle from different context} inappropriately applied"],
+    ["{Best practice} validated through {validation method}", "{Emerging approach} still gaining acceptance", "{Traditional approach} now considered outdated", "{Superficially similar practice} that serves different purpose"]
   ];
   
   return Array.from({ length: questionsCount }, (_, i) => {
-    const questionIndex = startingIndex + i + 1;
-    const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+    const questionIndex = startingIndex + i;
     
-    const questionText = `${difficultyPrefix} What is the most effective ${randomTopic} in ${skill.name} for situation #${questionIndex}?`;
+    // Select different template and topic for each question
+    const templateIndex = questionIndex % questionTemplates.length;
+    const topicIndex = (questionIndex * 3) % topics.length; // Use multiplication to get different distribution
     
-    const options = [
-      `Approach A: Implementation strategy ${questionIndex} for ${skill.name}`,
-      `Approach B: Method ${questionIndex} for ${skill.name}`,
-      `Approach C: Framework ${questionIndex} for ${skill.name}`,
-      `Approach D: Technique ${questionIndex} for ${skill.name}`
-    ];
+    const topic = topics[topicIndex];
+    let questionText = questionTemplates[templateIndex].replace("{topic}", topic);
+    
+    // For higher proficiency, add complexity to the question
+    if (skill.proficiency >= 4) {
+      questionText = `${difficultyPrefix} ${questionText} Consider specifically scenarios involving ${topics[(topicIndex + 5) % topics.length]}.`;
+    } else {
+      questionText = `${difficultyPrefix} ${questionText}`;
+    }
+    
+    // Generate unique options based on templates
+    const optionTemplateIndex = questionIndex % optionTemplates.length;
+    const optionTemplate = optionTemplates[optionTemplateIndex];
+    
+    const approaches = ["Iterative", "Agile", "Waterfall", "Lean", "Hybrid", "Systematic", "Integrated", "Modular"];
+    const aspects = ["efficiency", "scalability", "maintainability", "performance", "user experience", "security", "reliability"];
+    const authorities = ["industry experts", "recent research", "ISO standards", "case studies", "professional organizations"];
+    const validationMethods = ["empirical studies", "practical implementation", "peer review", "longitudinal research"];
+    
+    // Create unique options by substituting templates with specific terms
+    const options = optionTemplate.map((template, optIdx) => {
+      let option = template
+        .replace("{Approach}", approaches[(questionIndex + optIdx) % approaches.length])
+        .replace("{Alternative approach}", approaches[(questionIndex + optIdx + 2) % approaches.length])
+        .replace("{Wrong approach}", approaches[(questionIndex + optIdx + 4) % approaches.length])
+        .replace("{Commonly confused approach}", approaches[(questionIndex + optIdx + 6) % approaches.length])
+        .replace("{aspect}", aspects[(questionIndex + optIdx) % aspects.length])
+        .replace("{different aspect}", aspects[(questionIndex + optIdx + 3) % aspects.length])
+        .replace("{key element}", aspects[(questionIndex + optIdx + 5) % aspects.length])
+        .replace("{related field}", skill.name + " adjacent discipline")
+        .replace("{Primary technique}", `${skill.name} ${topic} technique ${questionIndex + optIdx}`)
+        .replace("{Outdated technique}", `Traditional ${topic} method`)
+        .replace("{Theoretical but impractical technique}", `Conceptual ${topic} framework`)
+        .replace("{Technique from related discipline}", `Adapted ${topic} methodology`)
+        .replace("{supporting element}", aspects[(questionIndex + optIdx + 1) % aspects.length])
+        .replace("{Correct principle}", `${topic} alignment principle`)
+        .replace("{Partially correct principle}", `${topic} approximation principle`)
+        .replace("{Common misconception}", `${topic} fallacy`)
+        .replace("{Principle from different context}", `Generalized ${topic} principle`)
+        .replace("{authority}", authorities[(questionIndex + optIdx) % authorities.length])
+        .replace("{Best practice}", `Optimized ${topic} approach`)
+        .replace("{Emerging approach}", `Innovative ${topic} methodology`)
+        .replace("{Traditional approach}", `Conventional ${topic} process`)
+        .replace("{Superficially similar practice}", `${topic} substitute practice`)
+        .replace("{validation method}", validationMethods[(questionIndex + optIdx) % validationMethods.length]);
+      
+      return `${String.fromCharCode(65 + optIdx)}. ${option}`;
+    });
     
     // Randomly select a correct answer
-    const correctIndex = Math.floor(Math.random() * 4);
+    const correctIndex = (questionIndex + skill.proficiency) % 4;
     
     return {
       question: questionText,
       options: options,
       correct_answer: options[correctIndex],
-      explanation: `Explanation for question ${questionIndex} about ${skill.name} ${randomTopic}`
+      explanation: `This is the correct approach for ${topic} in ${skill.name} because it properly addresses the key considerations at proficiency level ${skill.proficiency}.`
     };
   });
 }
 
 function proficiencyToPrefix(proficiency: number): string {
   switch (proficiency) {
-    case 1: return "BEGINNER:";
-    case 2: return "BASIC:";
-    case 3: return "INTERMEDIATE:";
-    case 4: return "ADVANCED:";
-    case 5: return "EXPERT:";
-    default: return "GENERAL:";
+    case 1: return "[BEGINNER]";
+    case 2: return "[BASIC]";
+    case 3: return "[INTERMEDIATE]";
+    case 4: return "[ADVANCED]";
+    case 5: return "[EXPERT]";
+    default: return "[GENERAL]";
   }
+}
+
+// Legacy function maintained for compatibility
+function generateUniqueMockQuestions(
+  skill: { id: string; name: string; proficiency: number },
+  questionsCount: number,
+  startingIndex: number = 0
+): Array<{
+  question: string;
+  options: string[];
+  correct_answer: string;
+  explanation: string;
+}> {
+  // Delegate to the new more diverse generator
+  return generateDiverseMockQuestions(skill, questionsCount, startingIndex);
 }
