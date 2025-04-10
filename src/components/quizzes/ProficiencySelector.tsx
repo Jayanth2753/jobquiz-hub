@@ -8,6 +8,7 @@ interface Skill {
   id: string;
   name: string;
   proficiency?: number;
+  importance?: number;
 }
 
 interface ProficiencySelectorProps {

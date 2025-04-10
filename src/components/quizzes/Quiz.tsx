@@ -258,34 +258,51 @@ export const QuizTaker = ({
       console.log("Generating quiz with skills:", skillsWithProficiency);
       
       // First, delete any existing questions for this quiz
-      const { error: deleteError } = await supabase
-        .from("quiz_questions")
-        .delete()
-        .eq("quiz_id", quizId);
-        
-      if (deleteError) {
-        console.error("Error deleting existing questions:", deleteError);
+      try {
+        const { error: deleteError } = await supabase
+          .from("quiz_questions")
+          .delete()
+          .eq("quiz_id", quizId);
+          
+        if (deleteError) {
+          console.error("Error deleting existing questions:", deleteError);
+        }
+      } catch (deleteError) {
+        console.error("Exception deleting questions:", deleteError);
       }
       
       // Then generate new questions
-      const { data, error } = await supabase.functions.invoke("generate-quiz-questions", {
-        body: { 
-          skills: skillsWithProficiency,
-          questionsPerSkill: 10,
-          quizId: quizId,
-          applicationId: applicationId
+      try {
+        const { data, error } = await supabase.functions.invoke("generate-quiz-questions", {
+          body: { 
+            skills: skillsWithProficiency,
+            questionsPerSkill: 10,
+            quizId: quizId,
+            applicationId: applicationId
+          }
+        });
+
+        if (error) {
+          console.error("Error invoking generate-quiz-questions function:", error);
+          throw error;
         }
-      });
 
-      if (error) {
-        console.error("Error invoking generate-quiz-questions function:", error);
-        throw error;
-      }
-
-      console.log("Quiz generation response:", data);
-      
-      if (data && data.quizId) {
-        // Wait a moment for the database to update
+        console.log("Quiz generation response:", data);
+        
+        if (data && data.quizId) {
+          // Wait a moment for the database to update
+          setTimeout(async () => {
+            await fetchQuizQuestions();
+          }, 3000);
+        }
+      } catch (invokeError) {
+        console.error("Exception invoking function:", invokeError);
+        toast({
+          title: "Error generating quiz",
+          description: "Failed to generate quiz questions. Using default questions instead.",
+        });
+        
+        // We'll fetch questions anyway after a delay, in case some were created
         setTimeout(async () => {
           await fetchQuizQuestions();
         }, 3000);
@@ -333,6 +350,12 @@ export const QuizTaker = ({
       if (parsedQuestions.length === 0 && !showProficiencySelector && commonSkills.length > 0) {
         setShowProficiencySelector(true);
       }
+      
+      // If questions were found, don't show the proficiency selector anymore
+      if (parsedQuestions.length > 0) {
+        setShowProficiencySelector(false);
+      }
+      
     } catch (error: any) {
       console.error("Error fetching quiz questions:", error);
       toast({
