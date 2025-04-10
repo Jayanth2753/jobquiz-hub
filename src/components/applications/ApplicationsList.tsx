@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
-import { Upload } from "lucide-react";
+import { Upload, Eye } from "lucide-react";
+import QuizTaker from "../quizzes/QuizTaker";
 
 interface ApplicationsListProps {
   employer?: boolean;
@@ -41,6 +41,8 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ employer = false })
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
+  const [quizDialogOpen, setQuizDialogOpen] = useState(false);
 
   useEffect(() => {
     if (userProfile) {
@@ -61,8 +63,6 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ employer = false })
         `);
 
       if (employer) {
-        // For employers, get applications for their jobs
-        // First get the employer's job IDs
         const { data: jobsData, error: jobsError } = await supabase
           .from('jobs')
           .select('id')
@@ -71,17 +71,14 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ employer = false })
         if (jobsError) throw jobsError;
         
         if (jobsData && jobsData.length > 0) {
-          // Extract job IDs and use them in the query
           const jobIds = jobsData.map(job => job.id);
           query = query.in('job_id', jobIds);
         } else {
-          // If no jobs, return empty array
           setApplications([]);
           setLoading(false);
           return;
         }
       } else {
-        // For employees, get their own applications
         query = query.eq('employee_id', userProfile.id);
       }
 
@@ -124,7 +121,6 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ employer = false })
     try {
       setUploadingId(applicationId);
       
-      // Upload to storage
       const filePath = `${userProfile.id}/${Date.now()}-${selectedFile.name}`;
       const { error: uploadError } = await supabase.storage
         .from('resumes')
@@ -132,7 +128,6 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ employer = false })
       
       if (uploadError) throw uploadError;
       
-      // Update application with resume URL
       const { error: updateError } = await supabase
         .from('applications')
         .update({
@@ -216,7 +211,6 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ employer = false })
   return (
     <div className="space-y-6">
       {applications.map((app) => {
-        // Add null checks for nested objects
         const jobTitle = app.jobs?.title || "Unknown Job";
         const applicantName = app.profiles 
           ? `${app.profiles.first_name || ''} ${app.profiles.last_name || ''}`.trim() 
@@ -244,25 +238,68 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ employer = false })
                   <p className="text-sm font-medium">Quiz Status</p>
                   {app.quizzes && app.quizzes.length > 0 ? (
                     <div className="mt-1">
-                      <p className="text-sm">
-                        {app.quizzes[0].status === 'completed' 
-                          ? (
-                            <span className="flex items-center">
-                              <span className="text-green-600 font-medium">Completed</span>
-                              {app.quizzes[0].score !== null && (
-                                <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                                  Score: {app.quizzes[0].score}%
-                                </span>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm">
+                          {app.quizzes[0].status === 'completed' 
+                            ? (
+                              <span className="flex items-center">
+                                <span className="text-green-600 font-medium">Completed</span>
+                                {app.quizzes[0].score !== null && (
+                                  <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                                    Score: {app.quizzes[0].score}%
+                                  </span>
+                                )}
+                              </span>
+                            ) 
+                            : (
+                              <span className="text-amber-600">
+                                {app.quizzes[0].status === 'in_progress' ? 'In Progress' : 'Pending'}
+                              </span>
+                            )
+                          }
+                        </p>
+                        
+                        {app.quizzes[0].status === 'completed' && (
+                          <Dialog 
+                            open={quizDialogOpen && selectedQuizId === app.quizzes[0].id}
+                            onOpenChange={(open) => {
+                              if (!open) {
+                                setQuizDialogOpen(false);
+                                setSelectedQuizId(null);
+                              }
+                            }}
+                          >
+                            <DialogTrigger asChild>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedQuizId(app.quizzes[0].id);
+                                  setQuizDialogOpen(true);
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Quiz
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                              <DialogHeader>
+                                <DialogTitle>
+                                  Quiz Results: {jobTitle}
+                                </DialogTitle>
+                              </DialogHeader>
+                              {selectedQuizId && (
+                                <QuizTaker 
+                                  quizId={selectedQuizId} 
+                                  viewMode={true} 
+                                  isEmployer={employer}
+                                />
                               )}
-                            </span>
-                          ) 
-                          : (
-                            <span className="text-amber-600">
-                              {app.quizzes[0].status === 'in_progress' ? 'In Progress' : 'Pending'}
-                            </span>
-                          )
-                        }
-                      </p>
+                            </DialogContent>
+                          </Dialog>
+                        )}
+                      </div>
+                      
                       {employer && app.quizzes[0].status === 'completed' && app.quizzes[0].score !== null && (
                         <div className="mt-2">
                           <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">

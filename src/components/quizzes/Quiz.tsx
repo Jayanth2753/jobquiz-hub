@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,9 +6,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Eye } from "lucide-react";
 import ProficiencySelector from "./ProficiencySelector";
-import QuizQuestion from "./QuizQuestion";
+import QuizQuestionComponent from "./QuizQuestion";
+import QuizDetails from "./QuizDetails";
 
 export interface QuizQuestion {
   id: string;
@@ -498,7 +498,7 @@ export const QuizTaker = ({
       </p>
 
       {questions.map((question, index) => (
-        <QuizQuestion
+        <QuizQuestionComponent
           key={question.id}
           question={question}
           index={index}
@@ -536,6 +536,7 @@ export const QuizManager = ({
   const [loading, setLoading] = useState(true);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewingCompleted, setViewingCompleted] = useState(false);
 
   const fetchQuizzes = async () => {
     if (!userProfile?.id) return;
@@ -644,13 +645,28 @@ export const QuizManager = ({
               </div>
               <div className="text-right">
                 {quiz.status === 'completed' && quiz.score !== null ? (
-                  <div className="text-lg font-semibold">
-                    Score: {quiz.score}%
+                  <div className="space-y-2">
+                    <div className="text-lg font-semibold">
+                      Score: {quiz.score}%
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setSelectedQuiz(quiz);
+                        setViewingCompleted(true);
+                        setDialogOpen(true);
+                      }}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View Answers
+                    </Button>
                   </div>
                 ) : (
                   <Button 
                     onClick={() => {
                       setSelectedQuiz(quiz);
+                      setViewingCompleted(false);
                       setDialogOpen(true);
                     }}
                     disabled={quiz.quiz_questions_count === 0}
@@ -677,6 +693,7 @@ export const QuizManager = ({
                   onClick={() => {
                     setDialogOpen(false);
                     setSelectedQuiz(null);
+                    setViewingCompleted(false);
                     fetchQuizzes();
                   }}
                 >
@@ -684,15 +701,25 @@ export const QuizManager = ({
                 </Button>
               </div>
               
-              <QuizTaker 
-                quizId={selectedQuiz.id}
-                applicationId={selectedQuiz.application_id}
-                onComplete={() => {
-                  setDialogOpen(false);
-                  setSelectedQuiz(null);
-                  fetchQuizzes();
-                }}
-              />
+              {viewingCompleted ? (
+                <QuizTaker
+                  quizId={selectedQuiz.id}
+                  applicationId={selectedQuiz.application_id}
+                  onComplete={() => {}}
+                  viewMode={true}
+                  isEmployer={false}
+                />
+              ) : (
+                <QuizTaker 
+                  quizId={selectedQuiz.id}
+                  applicationId={selectedQuiz.application_id}
+                  onComplete={() => {
+                    setDialogOpen(false);
+                    setSelectedQuiz(null);
+                    fetchQuizzes();
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>
