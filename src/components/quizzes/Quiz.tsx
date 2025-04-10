@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { Loader2, RefreshCw } from "lucide-react";
 import ProficiencySelector from "./ProficiencySelector";
+import QuizQuestion from "./QuizQuestion";
 
 export interface QuizQuestion {
   id: string;
@@ -257,10 +258,14 @@ export const QuizTaker = ({
       console.log("Generating quiz with skills:", skillsWithProficiency);
       
       // First, delete any existing questions for this quiz
-      await supabase
+      const { error: deleteError } = await supabase
         .from("quiz_questions")
         .delete()
         .eq("quiz_id", quizId);
+        
+      if (deleteError) {
+        console.error("Error deleting existing questions:", deleteError);
+      }
       
       // Then generate new questions
       const { data, error } = await supabase.functions.invoke("generate-quiz-questions", {
@@ -470,32 +475,13 @@ export const QuizTaker = ({
       </p>
 
       {questions.map((question, index) => (
-        <Card key={question.id}>
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-medium">
-                  {index + 1}. {question.question}
-                </h3>
-                <p className="text-sm text-gray-500">
-                  Skill: {question.skills?.name || "Unknown"}
-                </p>
-              </div>
-
-              <RadioGroup
-                value={answers[question.id] || ""}
-                onValueChange={(value) => handleAnswerChange(question.id, value)}
-              >
-                {question.options.map((option: string) => (
-                  <div key={option} className="flex items-center space-x-2">
-                    <RadioGroupItem value={option} id={`${question.id}-${option}`} />
-                    <Label htmlFor={`${question.id}-${option}`}>{option}</Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-          </CardContent>
-        </Card>
+        <QuizQuestion
+          key={question.id}
+          question={question}
+          index={index}
+          answer={answers[question.id] || ""}
+          onAnswerChange={handleAnswerChange}
+        />
       ))}
 
       <div className="flex justify-end">

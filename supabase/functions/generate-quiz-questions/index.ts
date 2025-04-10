@@ -72,31 +72,9 @@ serve(async (req) => {
     }
 
     console.log(`Generating quiz questions for ${skills.length} skills, ${questionsPerSkill} questions per skill, ApplicationId: ${applicationId || 'N/A'}, QuizId: ${quizId || 'N/A'}`);
+    console.log('Skills data:', JSON.stringify(skills));
 
-    // Process each skill and generate questions
-    const results = await Promise.all(
-      skills.map(async (skill) => {
-        try {
-          console.log(`Generating questions for skill: ${skill.name} at proficiency level ${skill.proficiency}`);
-          const questions = await generateQuestionsForSkill(skill, questionsPerSkill);
-          console.log(`Generated ${questions.length} questions for ${skill.name}`);
-          return {
-            skill_id: skill.id,
-            skill_name: skill.name,
-            questions
-          };
-        } catch (error) {
-          console.error(`Error generating questions for ${skill.name}:`, error);
-          return {
-            skill_id: skill.id,
-            skill_name: skill.name,
-            error: error.message || 'Failed to generate questions'
-          };
-        }
-      })
-    );
-
-    // Create or update quiz record in the database
+    // Create or update quiz record in the database if it doesn't exist
     let finalQuizId = quizId;
     
     if (!finalQuizId && user) {
@@ -123,6 +101,29 @@ serve(async (req) => {
       }
     }
 
+    // Process each skill and generate questions
+    const results = await Promise.all(
+      skills.map(async (skill) => {
+        try {
+          console.log(`Generating questions for skill: ${skill.name} at proficiency level ${skill.proficiency}`);
+          const questions = await generateQuestionsForSkill(skill, questionsPerSkill);
+          console.log(`Generated ${questions.length} questions for ${skill.name}`);
+          return {
+            skill_id: skill.id,
+            skill_name: skill.name,
+            questions
+          };
+        } catch (error) {
+          console.error(`Error generating questions for ${skill.name}:`, error);
+          return {
+            skill_id: skill.id,
+            skill_name: skill.name,
+            error: error.message || 'Failed to generate questions'
+          };
+        }
+      })
+    );
+
     // Insert quiz questions if we have a quiz ID
     if (finalQuizId) {
       const questionsToInsert = [];
@@ -143,6 +144,7 @@ serve(async (req) => {
       }
       
       if (questionsToInsert.length > 0) {
+        console.log(`Inserting ${questionsToInsert.length} questions into the database`);
         const { error: questionsError } = await supabaseClient
           .from('quiz_questions')
           .insert(questionsToInsert);
@@ -156,7 +158,11 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ data: results, quizId: finalQuizId }),
+      JSON.stringify({ 
+        data: results, 
+        quizId: finalQuizId,
+        message: 'Quiz generation completed'
+      }),
       { 
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -207,7 +213,7 @@ Make the questions challenging but fair for the given proficiency level.
 Ensure all options are plausible but only one is clearly correct.
 `;
 
-    console.log("Sending request to OpenAI");
+    console.log("Sending request to OpenAI with prompt:", prompt);
     const response = await openAIClient.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
