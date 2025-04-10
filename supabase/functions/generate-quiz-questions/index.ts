@@ -115,11 +115,11 @@ serve(async (req) => {
           };
         } catch (error) {
           console.error(`Error generating questions for ${skill.name}:`, error);
-          // Always return fallback questions on error
+          // Always return fallback questions on error, but make them unique
           return {
             skill_id: skill.id,
             skill_name: skill.name,
-            questions: generateMockQuestions(skill, questionsPerSkill)
+            questions: generateUniqueMockQuestions(skill, questionsPerSkill)
           };
         }
       })
@@ -199,9 +199,12 @@ async function generateQuestionsForSkill(
   explanation?: string;
 }>> {
   try {
+    // Modify the prompt to explicitly request diverse and unique questions
     const prompt = `
 Generate ${questionsCount} multiple-choice questions about ${skill.name} at proficiency level ${skill.proficiency} (1=beginner, 5=expert).
-Each question should have 4 options with one correct answer.
+IMPORTANT: Each question MUST be unique and substantially different from the others.
+Each question should have 4 distinct options with one correct answer.
+
 Return the response as a JSON array with this structure:
 [{
   "question": "Question text",
@@ -209,6 +212,7 @@ Return the response as a JSON array with this structure:
   "correct_answer": "The correct option (exact match to one of the options)",
   "explanation": "Brief explanation of why this is the correct answer"
 }]
+
 Make sure the difficulty matches the proficiency level:
 - Level 1: Basic knowledge and fundamental concepts
 - Level 2: Intermediate understanding with some practical experience
@@ -216,9 +220,10 @@ Make sure the difficulty matches the proficiency level:
 - Level 4: Advanced concepts and problem-solving skills
 - Level 5: Expert-level understanding and deep technical knowledge
 
-The questions should be varied and cover different aspects of the skill.
+The questions should cover different aspects of the skill.
 Make the questions challenging but fair for the given proficiency level.
 Ensure all options are plausible but only one is clearly correct.
+Give SPECIFIC, REALISTIC options - not generic placeholders.
 `;
 
     console.log("Sending request to OpenAI with prompt:", prompt);
@@ -227,10 +232,10 @@ Ensure all options are plausible but only one is clearly correct.
       const response = await openAIClient.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
-          { role: "system", content: "You are a specialized education AI that creates relevant assessment questions." },
+          { role: "system", content: "You are a specialized education AI that creates relevant assessment questions. Generate unique, varied questions without repetition." },
           { role: "user", content: prompt }
         ],
-        temperature: 0.7,
+        temperature: 0.8, // Increased for more variation
         max_tokens: 4000,
         response_format: { type: "json_object" },
       });
@@ -273,31 +278,54 @@ Ensure all options are plausible but only one is clearly correct.
           );
           
           if (validQuestions.length > 0) {
-            return validQuestions;
+            // Check for duplicate questions and ensure uniqueness
+            const uniqueQuestions = [];
+            const questionTexts = new Set();
+            
+            for (const question of validQuestions) {
+              if (!questionTexts.has(question.question)) {
+                questionTexts.add(question.question);
+                uniqueQuestions.push(question);
+              }
+            }
+            
+            // If we don't have enough unique questions, fill with mock questions
+            if (uniqueQuestions.length < questionsCount) {
+              const mockQuestions = generateUniqueMockQuestions(
+                skill, 
+                questionsCount - uniqueQuestions.length,
+                uniqueQuestions.length
+              );
+              return [...uniqueQuestions, ...mockQuestions];
+            }
+            
+            return uniqueQuestions.slice(0, questionsCount);
           }
         }
         
         console.error("Unexpected OpenAI response format:", content);
-        return generateMockQuestions(skill, questionsCount);
+        return generateUniqueMockQuestions(skill, questionsCount);
       } catch (parseError) {
         console.error("Error parsing OpenAI response:", parseError, "Response was:", response.choices[0]?.message.content);
-        return generateMockQuestions(skill, questionsCount);
+        return generateUniqueMockQuestions(skill, questionsCount);
       }
     } catch (apiError) {
       console.error("Error calling OpenAI API:", apiError);
       // Always fallback to mock data if the API call fails
-      return generateMockQuestions(skill, questionsCount);
+      return generateUniqueMockQuestions(skill, questionsCount);
     }
   } catch (error) {
     console.error("Uncaught error in generateQuestionsForSkill:", error);
     // Fallback to mock data for any error
-    return generateMockQuestions(skill, questionsCount);
+    return generateUniqueMockQuestions(skill, questionsCount);
   }
 }
 
-function generateMockQuestions(
+// Enhanced mock question generator that creates unique questions
+function generateUniqueMockQuestions(
   skill: { id: string; name: string; proficiency: number },
-  questionsCount: number
+  questionsCount: number,
+  startingIndex: number = 0
 ): Array<{
   question: string;
   options: string[];
@@ -305,18 +333,34 @@ function generateMockQuestions(
   explanation: string;
 }> {
   const difficultyPrefix = proficiencyToPrefix(skill.proficiency);
+  const topics = [
+    "principles", "methodologies", "best practices", "common challenges", 
+    "tools", "techniques", "implementation strategies", "history", 
+    "frameworks", "certification", "roles", "metrics", "evaluation methods",
+    "testing approaches", "documentation", "case studies", "common pitfalls"
+  ];
   
   return Array.from({ length: questionsCount }, (_, i) => {
+    const questionIndex = startingIndex + i + 1;
+    const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+    
+    const questionText = `${difficultyPrefix} What is the most effective ${randomTopic} in ${skill.name} for situation #${questionIndex}?`;
+    
+    const options = [
+      `Approach A: Implementation strategy ${questionIndex} for ${skill.name}`,
+      `Approach B: Method ${questionIndex} for ${skill.name}`,
+      `Approach C: Framework ${questionIndex} for ${skill.name}`,
+      `Approach D: Technique ${questionIndex} for ${skill.name}`
+    ];
+    
+    // Randomly select a correct answer
+    const correctIndex = Math.floor(Math.random() * 4);
+    
     return {
-      question: `${difficultyPrefix} ${skill.name} Question ${i + 1}: What is the best practice for ${skill.name}?`,
-      options: [
-        `Option A for ${skill.name}`,
-        `Option B for ${skill.name}`,
-        `Option C for ${skill.name}`,
-        `Option D for ${skill.name}`
-      ],
-      correct_answer: `Option C for ${skill.name}`,
-      explanation: `Explanation for question ${i + 1} about ${skill.name}`
+      question: questionText,
+      options: options,
+      correct_answer: options[correctIndex],
+      explanation: `Explanation for question ${questionIndex} about ${skill.name} ${randomTopic}`
     };
   });
 }
